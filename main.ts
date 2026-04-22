@@ -1,0 +1,1893 @@
+import {
+	App,
+	ItemView,
+	Modal,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	WorkspaceLeaf,
+	Notice,
+	TFolder,
+	Menu,
+	setIcon,
+} from "obsidian";
+
+export const AI_SIDEBAR_VIEW_TYPE = "ai-sidebar";
+
+export type Lang = "en" | "zh";
+
+export interface Provider {
+	id: string;
+	name: string;
+	url: string;
+	iconDataUrl?: string;
+}
+
+export interface SearchEntry {
+	id: string;
+	url: string;
+	engineId: string;
+	engineName: string;
+	engineIconUrl: string;
+	isDirectUrl?: boolean;
+}
+
+export interface PromptTemplate {
+	id: string;
+	name: string;
+	prompt: string;
+	builtin: boolean;
+}
+
+export interface AiSidebarSettings {
+	themeMode: "light" | "dark" | "system";
+	lang: Lang;
+	enableSendSelection: boolean;
+	enableSendNote: boolean;
+	sendNoteMaxChars: number;
+	activeSearchEngine: string;
+	promptTemplates: PromptTemplate[];
+	providerOrder: string[];
+	lastOpenProviderIds: string[];
+}
+
+// ── Built-in AI platform icons (modern gradient SVG data URLs) ──
+const AI_ICONS: Record<string, string> = {
+	deepseek: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EDeepSeek%3C%2Ftitle%3E%3Cpath%20d%3D%22M23.748%204.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434%201.202-.422%201.84.027%201.436.633%202.58%201.838%203.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526%205.526%200%2001-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365%2011.365%200%2000-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055%203.055%200%2001-.465.137%209.597%209.597%200%2000-2.883-.102c-1.885.21-3.39%201.102-4.497%202.623C.082%208.606-.231%2010.684.152%2012.85c.403%202.284%201.569%204.175%203.36%205.653%201.858%201.533%203.997%202.284%206.438%202.14%201.482-.085%203.133-.284%204.994-1.86.47.234.962.327%201.78.397.63.059%201.236-.03%201.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926%201.096-1.296%202.746-2.642%203.392-7.003.05-.347.007-.565%200-.845-.004-.17.035-.237.23-.256a4.173%204.173%200%20001.545-.475c1.396-.763%201.96-2.015%202.093-3.517.02-.23-.004-.467-.247-.588zM11.581%2018c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696%204.696%200%20011.529-.039c2.132.312%203.946%201.265%205.468%202.774.868.86%201.525%201.887%202.202%202.891.72%201.066%201.494%202.082%202.48%202.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306%200%2001.415-.287.302.302%200%2001.2.288.306.306%200%2001-.31.307.303.303%200%2001-.304-.308zm3.11%201.596c-.2.081-.399.151-.59.16a1.245%201.245%200%2001-.798-.254c-.274-.23-.47-.358-.552-.758a1.73%201.73%200%2001.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559%200%2001-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136%201.146.016.352.144.618.408%201.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z%22%20fill%3D%22%234D6BFE%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	doubao: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EDoubao%3C%2Ftitle%3E%3Cpath%20d%3D%22M5.31%2015.756c.172-3.75%201.883-5.999%202.549-6.739-3.26%202.058-5.425%205.658-6.358%208.308v1.12C1.501%2021.513%204.226%2024%207.59%2024a6.59%206.59%200%20002.2-.375c.353-.12.7-.248%201.039-.378.913-.899%201.65-1.91%202.243-2.992-4.877%202.431-7.974.072-7.763-4.5l.002.001z%22%20fill%3D%22%231E37FC%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M22.57%2010.283c-1.212-.901-4.109-2.404-7.397-2.8.295%203.792.093%208.766-2.1%2012.773a12.782%2012.782%200%2001-2.244%202.992c3.764-1.448%206.746-3.457%208.596-5.219%202.82-2.683%203.353-5.178%203.361-6.66a2.737%202.737%200%2000-.216-1.084v-.002z%22%20fill%3D%22%2337E1BE%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M14.303%201.867C12.955.7%2011.248%200%209.39%200%207.532%200%205.883.677%204.545%201.807%202.791%203.29%201.627%205.557%201.5%208.125v9.201c.932-2.65%203.097-6.25%206.357-8.307.5-.318%201.025-.595%201.569-.829%201.883-.801%203.878-.932%205.746-.706-.222-2.83-.718-5.002-.87-5.617h.001z%22%20fill%3D%22%23A569FF%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M17.305%204.961a199.47%20199.47%200%2001-1.08-1.094c-.202-.213-.398-.419-.586-.622l-1.333-1.378c.151.615.648%202.786.869%205.617%203.288.395%206.185%201.898%207.396%202.8-1.306-1.275-3.475-3.487-5.266-5.323z%22%20fill%3D%22%231E37FC%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	tongyi: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EQwen%3C%2Ftitle%3E%3Cpath%20d%3D%22M12.604%201.34c.393.69.784%201.382%201.174%202.075a.18.18%200%2000.157.091h5.552c.174%200%20.322.11.446.327l1.454%202.57c.19.337.24.478.024.837-.26.43-.513.864-.76%201.3l-.367.658c-.106.196-.223.28-.04.512l2.652%204.637c.172.301.111.494-.043.77-.437.785-.882%201.564-1.335%202.34-.159.272-.352.375-.68.37-.777-.016-1.552-.01-2.327.016a.099.099%200%2000-.081.05%20575.097%20575.097%200%2001-2.705%204.74c-.169.293-.38.363-.725.364-.997.003-2.002.004-3.017.002a.537.537%200%2001-.465-.271l-1.335-2.323a.09.09%200%2000-.083-.049H4.982c-.285.03-.553-.001-.805-.092l-1.603-2.77a.543.543%200%2001-.002-.54l1.207-2.12a.198.198%200%20000-.197%20550.951%20550.951%200%2001-1.875-3.272l-.79-1.395c-.16-.31-.173-.496.095-.965.465-.813.927-1.625%201.387-2.436.132-.234.304-.334.584-.335a338.3%20338.3%200%20012.589-.001.124.124%200%2000.107-.063l2.806-4.895a.488.488%200%2001.422-.246c.524-.001%201.053%200%201.583-.006L11.704%201c.341-.003.724.032.9.34zm-3.432.403a.06.06%200%2000-.052.03L6.254%206.788a.157.157%200%2001-.135.078H3.253c-.056%200-.07.025-.041.074l5.81%2010.156c.025.042.013.062-.034.063l-2.795.015a.218.218%200%2000-.2.116l-1.32%202.31c-.044.078-.021.118.068.118l5.716.008c.046%200%20.08.02.104.061l1.403%202.454c.046.081.092.082.139%200l5.006-8.76.783-1.382a.055.055%200%2001.096%200l1.424%202.53a.122.122%200%2000.107.062l2.763-.02a.04.04%200%2000.035-.02.041.041%200%20000-.04l-2.9-5.086a.108.108%200%20010-.113l.293-.507%201.12-1.977c.024-.041.012-.062-.035-.062H9.2c-.059%200-.073-.026-.043-.077l1.434-2.505a.107.107%200%20000-.114L9.225%201.774a.06.06%200%2000-.053-.031zm6.29%208.02c.046%200%20.058.02.034.06l-.832%201.465-2.613%204.585a.056.056%200%2001-.05.029.058.058%200%2001-.05-.029L8.498%209.841c-.02-.034-.01-.052.028-.054l.216-.012%206.722-.012z%22%20fill%3D%22url%28%23lobe-icons-qwen-_R_0_%29%22%20fill-rule%3D%22nonzero%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22lobe-icons-qwen-_R_0_%22%20x1%3D%220%25%22%20x2%3D%22100%25%22%20y1%3D%220%25%22%20y2%3D%220%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%236336E7%22%20stop-opacity%3D%22.84%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%236F69F7%22%20stop-opacity%3D%22.84%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E',
+	yuanbao: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EYuanbao%3C%2Ftitle%3E%3Cpath%20d%3D%22M11.988%2023.968c6.612%200%2011.972-5.361%2011.972-11.974S18.6.021%2011.988.021C5.376.02.016%205.38.016%2011.994s5.36%2011.974%2011.972%2011.974z%22%20fill%3D%22%23E5FFE7%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M17.281%2014.715s-3.273%209.93-15.24%203.982c0%200%203.26%205.434%2010.249%205.275l9.48-8.489-4.489-.77v.002z%22%20fill%3D%22%238FF793%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M21.64%204.9c-1.93-2.377-5.41-2.94-8.006-1.208a5.991%205.991%200%2000-1.65%208.311%205.995%205.995%200%2001-2.785%208.909%205.93%205.93%200%2001-6.457-1.356%206.123%206.123%200%2001-.886-1.152C-1.606%2012.932-.097%205.663%205.32%202.044a11.936%2011.936%200%200116.318%202.855h.003z%22%20fill%3D%22%2338CF6F%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M23.75%209.66a12.77%2012.77%200%2000-.733-2.356c-.77-1.64-2.841-2.378-4.57-1.452-1.156.622-1.847%201.884-1.691%203.187.017.127.045.274.072.394.25.732.43%201.51.525%202.328a10.718%2010.718%200%2001-5.548%2010.658c-.998.538-2.025.91-3.055%201.121%203.19.898%206.76.538%209.92-1.586%204.013-2.698%206.072-7.563%205.086-12.296h-.003l-.002.003z%22%20fill%3D%22%2338CF6F%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	yiyan: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EWenxin%3C%2Ftitle%3E%3Cpath%20d%3D%22M11.32%201.176a1.4%201.4%200%20011.36%200l8.64%204.843c.421.234.68.67.68%201.141v9.68c0%20.472-.259.908-.68%201.143l-8.64%204.84a1.4%201.4%200%2001-1.36%200l-8.64-4.84A1.31%201.31%200%20012%2016.84V7.159c0-.471.259-.907.68-1.142l8.64-4.84zm7.42%2013.839V8.227L12.002%2012%2012%2019.551l6.059-3.394a1.31%201.31%200%2000.68-1.142zM12.68%204.833a1.393%201.393%200%2000-1.36%200L5.944%207.846c-.421.235-.68.67-.68%201.142v6.027c0%20.47.259.905.68%201.142l2.795%201.566V11.09a1.546%201.546%200%2000.221.79%201.527%201.527%200%2001-.216-.834l.004-.094.02-.15.018-.084.017-.062.039-.117.062-.142.035-.065.081-.13.094-.122.084-.091.08-.075.125-.1.071-.048.134-.076%205.87-3.29-2.796-1.566z%22%20fill%3D%22url%28%23lobe-icons-wenxin-_R_0_%29%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M12%2011.088c0-.875-.73-1.584-1.631-1.584a1.66%201.66%200%2000-.855.237c-.027.016-.055.033-.08.05a2.361%202.361%200%2000-.123.093c-.022.02-.045.038-.066.059l-.048.045-.063.067c-.014.016-.028.031-.04.048a2.303%202.303%200%2000-.094.125l-.042.069a1.7%201.7%200%2000-.07.13l-.036.081a.764.764%200%2000-.022.06c-.01.03-.02.058-.028.087l-.017.062a.883.883%200%2000-.03.16c-.002.025-.007.05-.008.074a1.527%201.527%200%2000.213.929c.302.508.85.792%201.414.792.277%200%20.558-.068.814-.212l.815-.457v-.914L12%2011.088z%22%20fill%3D%22%23012F8D%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22lobe-icons-wenxin-_R_0_%22%20x1%3D%229.155%25%22%20x2%3D%2290.531%25%22%20y1%3D%2275.177%25%22%20y2%3D%2225.028%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%230A51C3%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%2323A4FB%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E',
+	chatglm: 'data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22currentColor%22%20fill-rule%3D%22evenodd%22%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EZ.ai%3C%2Ftitle%3E%3Cpath%20d%3D%22M12.105%202L9.927%204.953H.653L2.83%202h9.276zM23.254%2019.048L21.078%2022h-9.242l2.174-2.952h9.244zM24%202L9.264%2022H0L14.736%202H24z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	kimi: 'data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22currentColor%22%20fill-rule%3D%22evenodd%22%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EKimi%3C%2Ftitle%3E%3Cpath%20d%3D%22M21.846%200a1.923%201.923%200%20110%203.846H20.15a.226.226%200%2001-.227-.226V1.923C19.923.861%2020.784%200%2021.846%200z%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M11.065%2011.199l7.257-7.2c.137-.136.06-.41-.116-.41H14.3a.164.164%200%2000-.117.051l-7.82%207.756c-.122.12-.302.013-.302-.179V3.82c0-.127-.083-.23-.185-.23H3.186c-.103%200-.186.103-.186.23V19.77c0%20.128.083.23.186.23h2.69c.103%200%20.186-.102.186-.23v-3.25c0-.069.025-.135.069-.178l2.424-2.406a.158.158%200%2001.205-.023l6.484%204.772a7.677%207.677%200%20003.453%201.283c.108.012.2-.095.2-.23v-3.06c0-.117-.07-.212-.164-.227a5.028%205.028%200%2001-2.027-.807l-5.613-4.064c-.117-.078-.132-.279-.028-.381z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	gemini: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EGemini%3C%2Ftitle%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22%233186FF%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22url%28%23lobe-icons-gemini-0-_R_0_%29%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22url%28%23lobe-icons-gemini-1-_R_0_%29%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M20.616%2010.835a14.147%2014.147%200%2001-4.45-3.001%2014.111%2014.111%200%2001-3.678-6.452.503.503%200%2000-.975%200%2014.134%2014.134%200%2001-3.679%206.452%2014.155%2014.155%200%2001-4.45%203.001c-.65.28-1.318.505-2.002.678a.502.502%200%20000%20.975c.684.172%201.35.397%202.002.677a14.147%2014.147%200%20014.45%203.001%2014.112%2014.112%200%20013.679%206.453.502.502%200%2000.975%200c.172-.685.397-1.351.677-2.003a14.145%2014.145%200%20013.001-4.45%2014.113%2014.113%200%20016.453-3.678.503.503%200%20000-.975%2013.245%2013.245%200%2001-2.003-.678z%22%20fill%3D%22url%28%23lobe-icons-gemini-2-_R_0_%29%22%3E%3C%2Fpath%3E%3Cdefs%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-gemini-0-_R_0_%22%20x1%3D%227%22%20x2%3D%2211%22%20y1%3D%2215.5%22%20y2%3D%2212%22%3E%3Cstop%20stop-color%3D%22%2308B962%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2308B962%22%20stop-opacity%3D%220%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-gemini-1-_R_0_%22%20x1%3D%228%22%20x2%3D%2211.5%22%20y1%3D%225.5%22%20y2%3D%2211%22%3E%3Cstop%20stop-color%3D%22%23F94543%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23F94543%22%20stop-opacity%3D%220%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3ClinearGradient%20gradientUnits%3D%22userSpaceOnUse%22%20id%3D%22lobe-icons-gemini-2-_R_0_%22%20x1%3D%223.5%22%20x2%3D%2217.5%22%20y1%3D%2213.5%22%20y2%3D%2212%22%3E%3Cstop%20stop-color%3D%22%23FABC12%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22.46%22%20stop-color%3D%22%23FABC12%22%20stop-opacity%3D%220%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E',
+	chatgpt: 'data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22currentColor%22%20fill-rule%3D%22evenodd%22%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EOpenAI%3C%2Ftitle%3E%3Cpath%20d%3D%22M9.205%208.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357%201.356-.523%202.117-.523%202.854%200%204.662%202.212%204.662%204.566%200%20.167%200%20.357-.024.547l-4.71-2.759a.797.797%200%2000-.856%200l-5.97%203.473zm10.609%208.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473%201.95-1.118a.433.433%200%2001.476%200l4.543%202.617c1.309.76%202.189%202.378%202.189%203.948%200%201.808-1.07%203.473-2.76%204.163zM7.802%2012.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545%201.95-4.472%204.591-4.472%201%200%201.927.333%202.712.928L8.23%205.067c-.285.166-.428.404-.428.737v6.898zM12%2015.128l-2.795-1.57v-3.33L12%208.658l2.795%201.57v3.33L12%2015.128zm1.796%207.23c-1%200-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974%201.142c.167.095.238.238.238.428v5.233c0%202.545-1.974%204.472-4.614%204.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482%204.482%200%20014.21%206.327v5.423c0%20.333.143.571.428.738l5.947%203.449-1.95%201.118a.432.432%200%2001-.476%200zm-.262%203.9c-2.688%200-4.662-2.021-4.662-4.519%200-.19.024-.38.047-.57l4.686%202.71c.286.167.571.167.856%200l5.97-3.448v2.26c0%20.19-.07.333-.237.428l-4.543%202.616c-.619.357-1.356.523-2.117.523zm5.899%202.83a5.947%205.947%200%20005.827-4.756C22.287%2018.339%2024%2015.84%2024%2013.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498%200-3.401-2.759-5.947-5.946-5.947-.642%200-1.26.095-1.88.31A5.962%205.962%200%200010.205%200a5.947%205.947%200%2000-5.827%204.757C1.713%205.447%200%207.945%200%2010.49c0%201.666.713%203.283%201.998%204.448-.119.5-.19%201-.19%201.499%200%203.401%202.759%205.946%205.946%205.946.642%200%201.26-.095%201.88-.309a5.96%205.96%200%20004.162%201.713z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	grok: 'data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22currentColor%22%20fill-rule%3D%22evenodd%22%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EGrok%3C%2Ftitle%3E%3Cpath%20d%3D%22M9.27%2015.29l7.978-5.897c.391-.29.95-.177%201.137.272.98%202.369.542%205.215-1.41%207.169-1.951%201.954-4.667%202.382-7.149%201.406l-2.711%201.257c3.889%202.661%208.611%202.003%2011.562-.953%202.341-2.344%203.066-5.539%202.388-8.42l.006.007c-.983-4.232.242-5.924%202.75-9.383.06-.082.12-.164.179-.248l-3.301%203.305v-.01L9.267%2015.292M7.623%2016.723c-2.792-2.67-2.31-6.801.071-9.184%201.761-1.763%204.647-2.483%207.166-1.425l2.705-1.25a7.808%207.808%200%2000-1.829-1A8.975%208.975%200%20005.984%205.83c-2.533%202.536-3.33%206.436-1.962%209.764%201.022%202.487-.653%204.246-2.34%206.022-.599.63-1.199%201.259-1.682%201.925l7.62-6.815%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	claude: 'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EClaude%3C%2Ftitle%3E%3Cpath%20d%3D%22M4.709%2015.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0%2011.784l.055-.352.48-.321.686.06%201.52.103%202.278.158%201.652.097%202.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686%201.908%201.476%202.491%201.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97%202.97%200%2001-.104-.729L6.283.134%206.696%200l.996.134.42.364.62%201.414%201.002%202.229%201.555%203.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286%201.851-.559%202.903-.364%201.942h.212l.243-.242.985-1.306%201.652-2.064.73-.82.85-.904.547-.431h1.033l.76%201.129-.34%201.166-1.064%201.347-.881%201.142-1.264%201.7-.79%201.36.073.11.188-.02%202.856-.606%201.543-.28%201.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061%201.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093%201.068%202.006%201.81%202.509%202.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649%202.345%203.521.122%201.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674%207.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434%201.967-2.18%202.945-1.726%201.845-.414.164-.717-.37.067-.662.401-.589%202.388-3.036%201.44-1.882.93-1.086-.006-.158h-.055L4.132%2018.56l-1.13.146-.487-.456.061-.746.231-.243%201.908-1.312-.006.006z%22%20fill%3D%22%23D97757%22%20fill-rule%3D%22nonzero%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	copilot: 'data:image/svg+xml;charset=utf-8,%3Csvg%20fill%3D%22currentColor%22%20fill-rule%3D%22evenodd%22%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EGithubCopilot%3C%2Ftitle%3E%3Cpath%20d%3D%22M19.245%205.364c1.322%201.36%201.877%203.216%202.11%205.817.622%200%201.2.135%201.592.654l.73.964c.21.278.323.61.323.955v2.62c0%20.339-.173.669-.453.868C20.239%2019.602%2016.157%2021.5%2012%2021.5c-4.6%200-9.205-2.583-11.547-4.258-.28-.2-.452-.53-.453-.868v-2.62c0-.345.113-.679.321-.956l.73-.963c.392-.517.974-.654%201.593-.654l.029-.297c.25-2.446.81-4.213%202.082-5.52%202.461-2.54%205.71-2.851%207.146-2.864h.198c1.436.013%204.685.323%207.146%202.864zm-7.244%204.328c-.284%200-.613.016-.962.05-.123.447-.305.85-.57%201.108-1.05%201.023-2.316%201.18-2.994%201.18-.638%200-1.306-.13-1.851-.464-.516.165-1.012.403-1.044.996a65.882%2065.882%200%2000-.063%202.884l-.002.48c-.002.563-.005%201.126-.013%201.69.002.326.204.63.51.765%202.482%201.102%204.83%201.657%206.99%201.657%202.156%200%204.504-.555%206.985-1.657a.854.854%200%2000.51-.766c.03-1.682.006-3.372-.076-5.053-.031-.596-.528-.83-1.046-.996-.546.333-1.212.464-1.85.464-.677%200-1.942-.157-2.993-1.18-.266-.258-.447-.661-.57-1.108-.32-.032-.64-.049-.96-.05zm-2.525%204.013c.539%200%20.976.426.976.95v1.753c0%20.525-.437.95-.976.95a.964.964%200%2001-.976-.95v-1.752c0-.525.437-.951.976-.951zm5%200c.539%200%20.976.426.976.95v1.753c0%20.525-.437.95-.976.95a.964.964%200%2001-.976-.95v-1.752c0-.525.437-.951.976-.951zM7.635%205.087c-1.05.102-1.935.438-2.385.906-.975%201.037-.765%203.668-.21%204.224.405.394%201.17.657%201.995.657h.09c.649-.013%201.785-.176%202.73-1.11.435-.41.705-1.433.675-2.47-.03-.834-.27-1.52-.63-1.813-.39-.336-1.275-.482-2.265-.394zm6.465.394c-.36.292-.6.98-.63%201.813-.03%201.037.24%202.06.675%202.47.968.957%202.136%201.104%202.776%201.11h.044c.825%200%201.59-.263%201.995-.657.555-.556.765-3.187-.21-4.224-.45-.468-1.335-.804-2.385-.906-.99-.088-1.875.058-2.265.394zM12%207.615c-.24%200-.525.015-.84.044.03.16.045.336.06.526l-.001.159a2.94%202.94%200%2001-.014.25c.225-.022.425-.027.612-.028h.366c.187%200%20.387.006.612.028-.015-.146-.015-.277-.015-.409.015-.19.03-.365.06-.526a9.29%209.29%200%2000-.84-.044z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	google:     'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EGoogle%3C%2Ftitle%3E%3Cpath%20d%3D%22M23%2012.245c0-.905-.075-1.565-.236-2.25h-10.54v4.083h6.186c-.124%201.014-.797%202.542-2.294%203.569l-.021.136%203.332%202.53.23.022C21.779%2018.417%2023%2015.593%2023%2012.245z%22%20fill%3D%22%234285F4%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M12.225%2023c3.03%200%205.574-.978%207.433-2.665l-3.542-2.688c-.948.648-2.22%201.1-3.891%201.1a6.745%206.745%200%2001-6.386-4.572l-.132.011-3.465%202.628-.045.124C4.043%2020.531%207.835%2023%2012.225%2023z%22%20fill%3D%22%2334A853%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M5.84%2014.175A6.65%206.65%200%20015.463%2012c0-.758.138-1.491.361-2.175l-.006-.147-3.508-2.67-.115.054A10.831%2010.831%200%20001%2012c0%201.772.436%203.447%201.197%204.938l3.642-2.763z%22%20fill%3D%22%23FBBC05%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M12.225%205.253c2.108%200%203.529.892%204.34%201.638l3.167-3.031C17.787%202.088%2015.255%201%2012.225%201%207.834%201%204.043%203.469%202.197%207.062l3.63%202.763a6.77%206.77%200%20016.398-4.572z%22%20fill%3D%22%23EB4335%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E',
+	bing:       'data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EBing%3C%2Ftitle%3E%3Cpath%20d%3D%22M11.97%207.569a.92.92%200%2000-.805.863c-.013.195-.01.209.43%201.347%201%202.59%201.242%203.214%201.283%203.302.099.213.237.413.41.592.134.138.222.212.37.311.26.176.39.224%201.405.527.989.295%201.529.49%201.994.723.603.302%201.024.644%201.29%201.051.191.292.36.815.434%201.342.029.206.029.661%200%20.847a2.491%202.491%200%2001-.376%201.026c-.1.151-.065.126.081-.058.415-.52.838-1.408%201.054-2.213a6.728%206.728%200%2000.102-3.012%206.626%206.626%200%2000-3.291-4.53%20104.157%20104.157%200%2000-1.322-.698l-.254-.133a737.941%20737.941%200%2001-1.575-.827c-.548-.29-.78-.406-.846-.426a1.376%201.376%200%2000-.29-.045l-.093.01z%22%20fill%3D%22url%28%23lobe-icons-bing-0-_R_0_%29%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M13.164%2017.24a4.385%204.385%200%2000-.202.125%20511.45%20511.45%200%2000-1.795%201.115%20163.087%20163.087%200%2001-.989.614l-.463.288a99.198%2099.198%200%2001-1.502.941c-.326.2-.704.334-1.09.387-.18.024-.52.024-.7%200a2.807%202.807%200%2001-1.318-.538%203.665%203.665%200%2001-.543-.545%202.837%202.837%200%2001-.506-1.141%202.161%202.161%200%2000-.041-.182c-.008-.008.006.138.032.33.027.199.085.487.147.733.482%201.907%201.85%203.457%203.705%204.195a6.31%206.31%200%20001.658.412c.22.025.844.035%201.074.017%201.054-.08%201.972-.393%202.913-.992a325.28%20325.28%200%2001.937-.596l.384-.244.684-.435.234-.149.009-.005.025-.017.013-.007.172-.11.597-.38c.76-.481.987-.65%201.34-.998.148-.146.37-.394.381-.425.002-.007.042-.068.088-.136a2.49%202.49%200%2000.373-1.023%204.181%204.181%200%20000-.847%204.336%204.336%200%2000-.318-1.137c-.224-.472-.7-.9-1.383-1.245a2.972%202.972%200%2000-.406-.181c-.01%200-.646.392-1.413.87a7089.171%207089.171%200%2000-1.658%201.031l-.439.274z%22%20fill%3D%22url%28%23lobe-icons-bing-1-_R_0_%29%22%20fill-rule%3D%22nonzero%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M4.003%2014.946l.004%203.33.042.193c.134.604.366%201.04.77%201.445a2.701%202.701%200%20001.955.814c.536%200%201-.135%201.479-.43l.703-.435.556-.346V8.003c0-2.306-.004-3.675-.012-3.782a2.734%202.734%200%2000-.797-1.765c-.145-.144-.268-.24-.637-.496A1780.102%201780.102%200%20015.762.362C5.406.115%205.38.098%205.271.059a.943.943%200%2000-1.254.696C4.003.818%204%201.659%204%206.223v5.394H4l.003%203.329z%22%20fill%3D%22url%28%23lobe-icons-bing-2-_R_0_%29%22%20fill-rule%3D%22nonzero%22%3E%3C%2Fpath%3E%3Cdefs%3E%3CradialGradient%20cx%3D%2293.717%25%22%20cy%3D%2277.818%25%22%20fx%3D%2293.717%25%22%20fy%3D%2277.818%25%22%20gradientTransform%3D%22scale%28-1%20-.7146%29%20rotate%2849.288%202.035%20-2.198%29%22%20id%3D%22lobe-icons-bing-0-_R_0_%22%20r%3D%22143.691%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2300CACC%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23048FCE%22%3E%3C%2Fstop%3E%3C%2FradialGradient%3E%3CradialGradient%20cx%3D%2213.893%25%22%20cy%3D%2271.448%25%22%20fx%3D%2213.893%25%22%20fy%3D%2271.448%25%22%20gradientTransform%3D%22scale%28.6042%201%29%20rotate%28-23.34%20.184%20.494%29%22%20id%3D%22lobe-icons-bing-1-_R_0_%22%20r%3D%22149.21%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2300BBEC%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%232756A9%22%3E%3C%2Fstop%3E%3C%2FradialGradient%3E%3ClinearGradient%20id%3D%22lobe-icons-bing-2-_R_0_%22%20x1%3D%2250%25%22%20x2%3D%2250%25%22%20y1%3D%220%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%2300BBEC%22%3E%3C%2Fstop%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%232756A9%22%3E%3C%2Fstop%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E',
+};
+
+function svgToDataUrl(svg: string): string {
+	return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+export const BUILTIN_PROVIDERS: Provider[] = [
+	{ id: "deepseek",  name: "DeepSeek",  url: "https://chat.deepseek.com",       iconDataUrl: AI_ICONS.deepseek },
+	{ id: "doubao",    name: "豆包",      url: "https://www.doubao.com/chat",      iconDataUrl: AI_ICONS.doubao },
+	{ id: "tongyi",    name: "千问",      url: "https://www.qianwen.com",          iconDataUrl: AI_ICONS.tongyi },
+	{ id: "yuanbao",   name: "元宝",      url: "https://yuanbao.tencent.com/chat", iconDataUrl: AI_ICONS.yuanbao },
+	{ id: "yiyan",     name: "文心一言",  url: "https://yiyan.baidu.com",          iconDataUrl: AI_ICONS.yiyan },
+	{ id: "chatglm",   name: "Z.ai",      url: "https://chat.z.ai",                iconDataUrl: AI_ICONS.chatglm },
+	{ id: "kimi",      name: "KIMI",      url: "https://www.kimi.com",             iconDataUrl: AI_ICONS.kimi },
+	{ id: "gemini",    name: "Gemini",    url: "https://gemini.google.com/app",    iconDataUrl: AI_ICONS.gemini },
+	{ id: "chatgpt",   name: "ChatGPT",   url: "https://chatgpt.com",              iconDataUrl: AI_ICONS.chatgpt },
+	{ id: "grok",      name: "Grok",      url: "https://grok.com",                 iconDataUrl: AI_ICONS.grok },
+	{ id: "claude",    name: "Claude",    url: "https://claude.ai",                iconDataUrl: AI_ICONS.claude },
+	{ id: "copilot",   name: "Copilot",   url: "https://github.com/copilot",       iconDataUrl: AI_ICONS.copilot },
+];
+
+export const DEFAULT_SEARCH_ENGINES: SearchEngine[] = [
+	{ id: "google", name: "Google", url: "https://www.google.com/search?q={query}", iconDataUrl: AI_ICONS.google },
+	{ id: "bing",   name: "Bing",   url: "https://www.bing.com/search?q={query}",   iconDataUrl: AI_ICONS.bing },
+];
+
+export const DEFAULT_PROMPT_TEMPLATES: PromptTemplate[] = [
+	{ id: "summarize",    name: "总结这篇笔记",         prompt: "请对以下笔记内容进行简明扼要的总结，提炼核心要点和关键结论：\n\n{{text}}", builtin: true },
+	{ id: "polish",       name: "润色这段文字",         prompt: "请对以下文字进行润色，使其表达更流畅、专业，同时保持原意不变：\n\n{{text}}", builtin: true },
+	{ id: "trans-en",     name: "翻译为英文",           prompt: "请将以下内容翻译成英文，要求准确、地道：\n\n{{text}}", builtin: true },
+	{ id: "trans-zh",     name: "翻译为中文",           prompt: "请将以下内容翻译成中文，要求准确、通顺：\n\n{{text}}", builtin: true },
+	{ id: "todo",         name: "提取行动项",           prompt: "请从以下内容中提取所有待办事项和行动项，并以清单形式列出：\n\n{{text}}", builtin: true },
+	{ id: "mindmap",      name: "生成思维导图大纲",     prompt: "请为以下内容生成一个 Markdown 格式的思维导图大纲（使用层级标题和列表）：\n\n{{text}}", builtin: true },
+	{ id: "explain",      name: "解释概念",             prompt: "请解释以下内容涉及的核心概念，用通俗易懂的语言说明：\n\n{{text}}", builtin: true },
+	{ id: "academic",     name: "学术润色",             prompt: "你是一位学术写作专家。请对以下文字进行学术化润色，提升其专业性和逻辑性：\n\n{{text}}", builtin: true },
+];
+
+export const DEFAULT_SETTINGS: AiSidebarSettings = {
+	themeMode: "system",
+	lang: "zh",
+	enableSendSelection: true,
+	enableSendNote: true,
+	sendNoteMaxChars: 8000,
+	activeSearchEngine: "google",
+	promptTemplates: JSON.parse(JSON.stringify(DEFAULT_PROMPT_TEMPLATES)),
+	providerOrder: BUILTIN_PROVIDERS.map((p) => p.id),
+	lastOpenProviderIds: [],
+};
+
+const TRANSLATIONS: Record<Lang, Record<string, string>> = {
+	en: {
+		pluginName: "AI Sidebar",
+		themeMode: "Theme mode",
+		themeModeDesc: "Force a theme for embedded web pages, or follow Obsidian system theme.",
+		light: "Light",
+		dark: "Dark",
+		followSystem: "Follow system",
+		providers: "Providers",
+		addProvider: "+ Add Provider",
+		name: "Name",
+		nameDesc: "Display name for the tab",
+		url: "URL",
+		urlDesc: "Website URL to load",
+		pageZoom: "Page Zoom (%)",
+		pageZoomDesc: "Zoom level for this provider's page",
+		add: "Add",
+		save: "Save",
+		edit: "Edit",
+		delete: "Delete",
+		enabled: "Enabled",
+		zoom: "Zoom",
+		noProvidersEnabled: "No providers enabled. Go to Settings → AI Sidebar to enable or add websites.",
+		customizeHint: "All providers can be deleted. You can keep only the ones you need and add your own.",
+		sendCurrentNote: "Send current note to AI",
+		sendSelection: "Send selection to AI Sidebar",
+		openFolderContext: "Open AI Sidebar (folder context)",
+		openAiSidebar: "Open AI Sidebar",
+		sendNoteCommand: "Send current note to AI Sidebar",
+		noActiveNote: "No active note found.",
+		emptyNote: "Current note is empty.",
+		sentNote: 'Sent "%s" to AI.',
+		injectFailed: "Injection failed: %s",
+		injectNoInput: "Could not inject prompt: %s",
+		linkCopied: "Link copied to clipboard",
+		home: "Home",
+		goBack: "Go back",
+		goForward: "Go forward",
+		refresh: "Refresh",
+		copyLink: "Copy link",
+		openInBrowser: "Open in browser",
+		toggleDevTools: "Toggle dev tools",
+		addCustomWebsite: "Add custom provider",
+		editProvider: "Edit Provider",
+		addProviderModal: "Add Custom Provider",
+		requiredFields: "Name and URL are required.",
+		language: "Language",
+		languageDesc: "Select the display language for this plugin.",
+		settings: "Settings",
+		enableSendSelection: "Enable right-click send selection",
+		enableSendSelectionDesc: "Show 'Send selection to AI Sidebar' in the editor context menu when text is selected.",
+		enableSendNote: "Enable one-click send note to AI",
+		enableSendNoteDesc: "Click the 📋 button in the sidebar to send the current note to AI. Content exceeding the limit will be truncated.",
+		sendNoteMaxChars: "Max send characters",
+		sendNoteMaxCharsDesc: "Maximum character limit when sending the full note. Excess content will be truncated.",
+		contentTruncated: "Note content exceeds limit, truncated to %s characters.",
+		searchEngines: "Search Engines",
+		addSearchEngine: "+ Add Search Engine",
+		searchEngineName: "Engine Name",
+		searchEngineUrl: "Search URL (use {query})",
+		activeSearchEngine: "Default Search Engine",
+		searchPlaceholder: "Search or enter a URL...",
+		searchWith: "Search with",
+		promptTemplates: "Prompt Templates",
+		addPrompt: "+ Add Prompt",
+		promptName: "Template Name",
+		promptContent: "Prompt Content",
+		promptContentDesc: "Use {{text}} as placeholder for note content.",
+		uploadIcon: "Upload Icon",
+		iconPreview: "Preview",
+		promptBtnTitle: "Prompt Templates",
+		openProviderFirst: "Please open an AI platform first.",
+		noProviderForUrl: "No provider configured for this URL.",
+		welcomeTitle: "Hello, Friend",
+		welcomeSubtitle: "Select an AI platform to start",
+		resetDefaults: "Reset defaults",
+		tabGeneral: "General",
+		tabProviders: "Providers",
+		tabSearchEngines: "Search Engines",
+		tabPrompts: "Prompt Templates",
+	},
+	zh: {
+		pluginName: "AI 侧边栏",
+		themeMode: "主题模式",
+		themeModeDesc: "为嵌入的网页强制指定主题，或跟随 Obsidian 系统主题。",
+		light: "浅色",
+		dark: "深色",
+		followSystem: "跟随系统",
+		providers: "AI 平台",
+		addProvider: "+ 添加平台",
+		name: "名称",
+		nameDesc: "标签页的显示名称",
+		url: "网址",
+		urlDesc: "要加载的网站 URL",
+		pageZoom: "页面缩放 (%)",
+		pageZoomDesc: "该 Provider 页面的缩放级别",
+		add: "添加",
+		save: "保存",
+		edit: "编辑",
+		delete: "删除",
+		enabled: "启用",
+		zoom: "缩放",
+		noProvidersEnabled: "没有启用的 Provider。请前往 设置 → AI Sidebar 启用或添加网站。",
+		customizeHint: "所有 Provider 均可删除。您可以只保留需要的平台，并添加自定义网站。",
+		sendCurrentNote: "发送当前笔记到 AI",
+		sendSelection: "发送选中内容到 AI Sidebar",
+		openFolderContext: "在 AI Sidebar 中打开（文件夹上下文）",
+		openAiSidebar: "打开 AI Sidebar",
+		sendNoteCommand: "发送当前笔记到 AI Sidebar",
+		noActiveNote: "未找到当前打开的笔记。",
+		emptyNote: "当前笔记为空。",
+		sentNote: '已将 "%s" 发送到 AI。',
+		injectFailed: "注入失败：%s",
+		injectNoInput: "无法注入 prompt：%s",
+		linkCopied: "链接已复制到剪贴板",
+		home: "主页",
+		goBack: "后退",
+		goForward: "前进",
+		refresh: "刷新",
+		copyLink: "复制链接",
+		openInBrowser: "在浏览器中打开",
+		toggleDevTools: "开发者工具",
+		addCustomWebsite: "添加自定义 Provider",
+		editProvider: "编辑 Provider",
+		addProviderModal: "添加自定义 Provider",
+		requiredFields: "名称和网址为必填项。",
+		language: "界面语言",
+		languageDesc: "选择本插件的显示语言。",
+		settings: "设置",
+		enableSendSelection: "开启右键发送选中文本",
+		enableSendSelectionDesc: "在编辑器中选中文字后，右键菜单显示\"发送到 AI Sidebar\"选项。",
+		enableSendNote: "开启一键发送笔记到AI",
+		enableSendNoteDesc: "点击侧边栏的 📋 按钮，将当前笔记内容发送到 AI。超过上限会自动截断。",
+		sendNoteMaxChars: "最大发送字符数",
+		sendNoteMaxCharsDesc: "发送整篇笔记时的最大字符数限制，超出部分将被截断。",
+		contentTruncated: "笔记内容超过上限，已截断至 %s 个字符。",
+		searchEngines: "搜索引擎",
+		addSearchEngine: "+ 添加搜索引擎",
+		searchEngineName: "引擎名称",
+		searchEngineUrl: "搜索 URL（使用 {query}）",
+		activeSearchEngine: "默认搜索引擎",
+		searchPlaceholder: "搜索或输入网址...",
+		searchWith: "使用",
+		promptTemplates: "Prompt 模板",
+		addPrompt: "+ 添加模板",
+		promptName: "模板名称",
+		promptContent: "提示词内容",
+		promptContentDesc: "使用 {{text}} 作为笔记内容的占位符。",
+		uploadIcon: "上传图标",
+		iconPreview: "预览",
+		promptBtnTitle: "Prompt 模板",
+		openProviderFirst: "请先打开一个 AI 平台。",
+		noProviderForUrl: "没有为此 URL 配置的平台。",
+		welcomeTitle: "你好，朋友",
+		welcomeSubtitle: "选择一个 AI 平台开始对话",
+		resetDefaults: "恢复默认",
+		tabGeneral: "常规",
+		tabProviders: "AI 平台",
+		tabSearchEngines: "搜索引擎",
+		tabPrompts: "Prompt 模板",
+	},
+};
+
+const THEME_INJECT_CSS = `
+html.ai-sidebar-force-dark {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
+html.ai-sidebar-force-dark img,
+html.ai-sidebar-force-dark video,
+html.ai-sidebar-force-dark iframe,
+html.ai-sidebar-force-dark canvas,
+html.ai-sidebar-force-dark svg,
+html.ai-sidebar-force-dark [role="img"] {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
+`;
+
+const THEME_INJECT_CSS_ESCAPED = escapeJsString(THEME_INJECT_CSS);
+
+function generateId(): string {
+	return Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+}
+
+function isUrl(input: string): boolean {
+	if (/^https?:\/\//i.test(input)) return true;
+	if (/^[a-z0-9][-a-z0-9]*(\.[a-z0-9][-a-z0-9]*)*\.[a-z]{2,}(\/.*)?$/i.test(input)) return true;
+	return false;
+}
+
+function getFaviconUrl(url: string): string {
+	try {
+		const hostname = new URL(url.startsWith("http") ? url : "https://" + url).hostname;
+		return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
+	} catch {
+		return AI_ICONS.google;
+	}
+}
+
+function normalizeUrl(input: string): string {
+	if (/^https?:\/\//i.test(input)) return input;
+	return "https://" + input;
+}
+
+function escapeJsString(str: string): string {
+	return str
+		.replace(/\\/g, "\\\\")
+		.replace(/"/g, '\\"')
+		.replace(/'/g, "\\'")
+		.replace(/`/g, "\\`")
+		.replace(/\$/g, "\\$")
+		.replace(/\n/g, "\\n")
+		.replace(/\r/g, "\\r")
+		.replace(/\t/g, "\\t");
+}
+
+function encodeTextToBase64(text: string): string {
+	return btoa(unescape(encodeURIComponent(text)));
+}
+
+function t(lang: Lang, key: string, ...args: string[]): string {
+	let text = TRANSLATIONS[lang][key] || key;
+	args.forEach((arg) => {
+		text = text.replace(`%s`, arg);
+	});
+	return text;
+}
+
+// ── Helper: read file as Data URL ──
+function readFileAsDataURL(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(reader.result as string);
+		reader.onerror = reject;
+		reader.readAsDataURL(file);
+	});
+}
+
+// ── Modals ──
+
+export class PromptTemplateModal extends Modal {
+	plugin: AiSidebarPlugin;
+	onSubmit: (template: Partial<PromptTemplate>) => void;
+	template: Partial<PromptTemplate>;
+	isEdit: boolean;
+
+	constructor(
+		app: App,
+		plugin: AiSidebarPlugin,
+		template: Partial<PromptTemplate>,
+		isEdit: boolean,
+		onSubmit: (template: Partial<PromptTemplate>) => void
+	) {
+		super(app);
+		this.plugin = plugin;
+		this.template = { ...template };
+		this.isEdit = isEdit;
+		this.onSubmit = onSubmit;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		const _t = (key: string) => t(this.plugin.settings.lang, key);
+		contentEl.createEl("h2", { text: this.isEdit ? _t("edit") : _t("add") });
+
+		new Setting(contentEl)
+			.setName(_t("promptName"))
+			.addText((text) => {
+				text.setValue(this.template.name || "");
+				text.onChange((value) => { this.template.name = value; });
+			});
+
+		new Setting(contentEl)
+			.setName(_t("promptContent"))
+			.setDesc(_t("promptContentDesc"))
+			.addTextArea((area) => {
+				area.setValue(this.template.prompt || "");
+				area.inputEl.rows = 6;
+				area.onChange((value) => { this.template.prompt = value; });
+			});
+
+		new Setting(contentEl).addButton((btn) =>
+			btn
+				.setButtonText(this.isEdit ? _t("save") : _t("add"))
+				.setCta()
+				.onClick(() => {
+					const name = (this.template.name || "").trim();
+					const prompt = (this.template.prompt || "").trim();
+					if (!name || !prompt) {
+						new Notice(_t("requiredFields"));
+						return;
+					}
+					this.template.name = name;
+					this.template.prompt = prompt;
+					this.close();
+					this.onSubmit(this.template);
+				})
+		);
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
+}
+
+// ── Main View ──
+
+export class AiSidebarView extends ItemView {
+	plugin: AiSidebarPlugin;
+	private webview: any | null = null;
+	private currentProviderId: string | null = null;
+	private contentElInner: HTMLElement | null = null;
+	private titlebarEl: HTMLElement | null = null;
+	private tabsHeaderEl: HTMLElement | null = null;
+	private loadingEl: HTMLElement | null = null;
+	private homePageEl: HTMLElement | null = null;
+	private isHomePage: boolean = true;
+	private searchEntries: SearchEntry[] = [];
+	private activeSearchId: string | null = null;
+	openProviderIds: string[] = [];
+
+	constructor(leaf: WorkspaceLeaf, plugin: AiSidebarPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+		const _t = (key: string) => t(plugin.settings.lang, key);
+		this.addAction("refresh-cw", _t("refresh"), () => this.refresh());
+		this.addAction("link", _t("copyLink"), () => this.copyLink());
+		this.addAction("binary", _t("toggleDevTools"), () => this.toggleDevTools());
+	}
+
+	getViewType(): string {
+		return AI_SIDEBAR_VIEW_TYPE;
+	}
+
+	getDisplayText(): string {
+		return t(this.plugin.settings.lang, "pluginName");
+	}
+
+	getIcon(): string {
+		return "plane-takeoff";
+	}
+
+	async onOpen(): Promise<void> {
+		const { containerEl } = this;
+		containerEl.empty();
+		containerEl.addClass("ai-sidebar-container");
+		// Reset webview reference because empty() removed the DOM element
+		this.webview = null;
+		// Restore opened AI tabs from last session (filter out obsolete IDs)
+		const validIds = new Set(BUILTIN_PROVIDERS.map((p) => p.id));
+		let restored = this.plugin.settings.lastOpenProviderIds.filter((id) => validIds.has(id));
+		// Fallback to localStorage if data.json didn't persist (async saveData may fail on quit)
+		if (restored.length === 0) {
+			restored = this.plugin.readTabBackup().filter((id) => validIds.has(id));
+		}
+		this.openProviderIds = restored;
+
+		// Title bar
+		this.titlebarEl = containerEl.createEl("div", { cls: "ai-sidebar-titlebar" });
+		this.renderTitlebar(this.titlebarEl);
+
+		// Tabs header
+		this.tabsHeaderEl = containerEl.createEl("div", { cls: "ai-sidebar-tabs-header" });
+		this.renderTabsHeader(this.tabsHeaderEl);
+
+		// Content area
+		this.contentElInner = containerEl.createEl("div", { cls: "ai-sidebar-content" });
+
+		// Home page
+		this.homePageEl = this.contentElInner.createEl("div", { cls: "ai-sidebar-homepage" });
+		this.renderHomePage(this.homePageEl);
+
+		// Loading overlay
+		this.loadingEl = this.contentElInner.createEl("div", { cls: "ai-sidebar-loading" });
+		this.loadingEl.createEl("div", { cls: "ai-sidebar-spinner" });
+		this.loadingEl.createEl("span", { cls: "ai-sidebar-loading-text", text: t(this.plugin.settings.lang, "loading") || "Loading..." });
+		this.hideLoading();
+
+		// Do NOT pre-create webview here. Creating it too early during
+		// Obsidian startup can crash the renderer. It will be created
+		// lazily when the user first clicks an AI or searches.
+		this.showHomePage();
+	}
+
+	onPaneMenu(menu: Menu, source: string): void {
+		super.onPaneMenu(menu, source);
+		const _t = (key: string) => t(this.plugin.settings.lang, key);
+		menu.addItem((item) => { item.setTitle(_t("refresh")); item.setIcon("refresh-cw"); item.onClick(() => this.refresh()); });
+		menu.addItem((item) => { item.setTitle(_t("copyLink")); item.setIcon("link"); item.onClick(() => this.copyLink()); });
+		menu.addItem((item) => { item.setTitle(_t("toggleDevTools")); item.setIcon("binary"); item.onClick(() => this.toggleDevTools()); });
+		if (this.plugin.settings.enableSendNote) {
+			menu.addItem((item) => {
+				item.setTitle(_t("sendCurrentNote"));
+				item.setIcon("paste-text");
+				item.onClick(() => this.injectCurrentNote());
+			});
+		}
+	}
+
+	// ── Title Bar ──
+	renderTitlebar(titlebar: HTMLElement): void {
+		titlebar.empty();
+		const _t = (key: string) => t(this.plugin.settings.lang, key);
+
+		// Left: Home button
+		const homeBtn = titlebar.createEl("button", { cls: "ai-sidebar-titlebar-btn", attr: { "aria-label": _t("home"), title: _t("home") } });
+		setIcon(homeBtn, "home");
+		homeBtn.addEventListener("click", () => this.showHomePage());
+
+		// Center: Title
+		titlebar.createEl("span", { cls: "ai-sidebar-titlebar-title", text: "AI Sidebar" });
+
+		// Right: actions
+		const actions = titlebar.createEl("div", { cls: "ai-sidebar-titlebar-actions" });
+
+		// Prompt templates button
+		const promptBtn = actions.createEl("button", { cls: "ai-sidebar-titlebar-btn", attr: { "aria-label": _t("promptBtnTitle"), title: _t("promptBtnTitle") } });
+		setIcon(promptBtn, "message-square-text");
+		promptBtn.addEventListener("click", (e) => this.showPromptMenu(e, promptBtn));
+
+		if (this.plugin.settings.enableSendNote) {
+			const injectBtn = actions.createEl("button", { cls: "ai-sidebar-titlebar-btn", attr: { "aria-label": _t("sendCurrentNote"), title: _t("sendCurrentNote") } });
+			setIcon(injectBtn, "clipboard-paste");
+			injectBtn.addEventListener("click", () => this.injectCurrentNote());
+		}
+
+	}
+
+	// ── Prompt Menu ──
+	private promptMenuEl: HTMLElement | null = null;
+
+	showPromptMenu(event: MouseEvent, anchor: HTMLElement): void {
+		event.stopPropagation();
+		this.hidePromptMenu();
+
+		const _t = (key: string) => t(this.plugin.settings.lang, key);
+		const menu = document.body.createEl("div", { cls: "ai-sidebar-prompt-menu" });
+		this.promptMenuEl = menu;
+
+		this.plugin.settings.promptTemplates.forEach((template) => {
+			const item = menu.createEl("div", { cls: "ai-sidebar-prompt-menu-item", text: template.name });
+			item.addEventListener("click", async () => {
+				this.hidePromptMenu();
+				if (this.isHomePage || !this.currentProviderId) {
+					new Notice(_t("openProviderFirst"));
+					return;
+				}
+				await this.injectPromptTemplate(template);
+			});
+		});
+
+		const rect = anchor.getBoundingClientRect();
+		menu.style.position = "fixed";
+		menu.style.top = (rect.bottom + 4) + "px";
+		menu.style.right = (window.innerWidth - rect.right) + "px";
+		menu.style.zIndex = "9999";
+
+		const closeMenu = () => this.hidePromptMenu();
+		requestAnimationFrame(() => {
+			document.addEventListener("click", closeMenu, { once: true });
+		});
+	}
+
+	hidePromptMenu(): void {
+		if (this.promptMenuEl) {
+			this.promptMenuEl.remove();
+			this.promptMenuEl = null;
+		}
+	}
+
+	async injectPromptTemplate(template: PromptTemplate): Promise<void> {
+		const _t = (key: string, ...args: string[]) => t(this.plugin.settings.lang, key, ...args);
+		const file = this.app.workspace.getActiveFile();
+		if (!file) {
+			new Notice(_t("noActiveNote"));
+			return;
+		}
+		let content = await this.app.vault.cachedRead(file);
+		if (!content || content.trim().length === 0) {
+			new Notice(_t("emptyNote"));
+			return;
+		}
+		const maxChars = this.plugin.settings.sendNoteMaxChars;
+		if (content.length > maxChars) {
+			content = content.substring(0, maxChars) + "\n\n[...]";
+		}
+		const finalPrompt = template.prompt.replace(/\{\{text\}\}/g, content);
+		await this.injectRawText(finalPrompt, _t("sentNote", file.name));
+	}
+
+	// ── Tabs Header ──
+	renderTabsHeader(header: HTMLElement): void {
+		header.empty();
+		const _t = (key: string) => t(this.plugin.settings.lang, key);
+
+		let dragState: {
+			id: string;
+			btn: HTMLElement;
+			ghost: HTMLElement;
+			spacer: HTMLElement;
+			startX: number;
+			startY: number;
+			initialRect: DOMRect;
+			isDragging: boolean;
+		} | null = null;
+
+		const DRAG_THRESHOLD = 4;
+
+		// Opened AI tabs
+		this.openProviderIds.forEach((pid) => {
+			const provider = BUILTIN_PROVIDERS.find((p) => p.id === pid);
+			if (!provider) return;
+			const btn = header.createEl("button", { cls: "ai-sidebar-tab" });
+			btn.setAttribute("data-provider", provider.id);
+			btn.setAttribute("aria-label", provider.name);
+			btn.setAttribute("title", provider.name);
+
+			if (provider.iconDataUrl) {
+				const img = btn.createEl("img", { cls: "ai-sidebar-tab-icon" });
+				img.src = provider.iconDataUrl;
+				img.alt = provider.name;
+			} else {
+				setIcon(btn, provider.icon || "globe");
+				btn.addClass("ai-sidebar-tab-lucide");
+			}
+
+			// Close button
+			const closeBtn = btn.createEl("span", { cls: "ai-sidebar-tab-close", text: "×" });
+			closeBtn.addEventListener("click", (e: MouseEvent) => {
+				e.stopPropagation();
+				const idx = this.openProviderIds.indexOf(provider.id);
+				if (idx !== -1) {
+					this.openProviderIds.splice(idx, 1);
+					this.plugin.persistOpenTabs(this);
+					if (this.currentProviderId === provider.id) {
+						if (this.openProviderIds.length > 0) {
+							this.switchProvider(this.openProviderIds[this.openProviderIds.length - 1]);
+						} else if (this.searchEntries.length > 0) {
+							this.switchToSearch(this.searchEntries[this.searchEntries.length - 1].id);
+						} else {
+							this.currentProviderId = null;
+							this.showHomePage();
+						}
+					}
+				}
+				this.renderTabsHeader(header);
+			});
+
+			btn.addEventListener("mousedown", (e: MouseEvent) => {
+				if (e.button !== 0) return;
+				e.preventDefault();
+
+				dragState = {
+					id: provider.id,
+					btn,
+					ghost: null as any,
+					spacer: null as any,
+					startX: e.clientX,
+					startY: e.clientY,
+					initialRect: btn.getBoundingClientRect(),
+					isDragging: false,
+				};
+
+				const onMouseMove = (moveEvent: MouseEvent) => {
+					if (!dragState) return;
+					const dx = moveEvent.clientX - dragState.startX;
+					const dy = moveEvent.clientY - dragState.startY;
+					const dist = Math.sqrt(dx * dx + dy * dy);
+
+					if (!dragState.isDragging && dist > DRAG_THRESHOLD) {
+						dragState.isDragging = true;
+						const rect = dragState.initialRect;
+						const ghost = document.body.createEl("button", { cls: "ai-sidebar-tab ai-sidebar-tab-ghost" });
+						if (provider.iconDataUrl) {
+							const img = ghost.createEl("img", { cls: "ai-sidebar-tab-icon" });
+							img.src = provider.iconDataUrl;
+						} else {
+							setIcon(ghost, provider.icon || "globe");
+							ghost.addClass("ai-sidebar-tab-lucide");
+						}
+						ghost.style.width = rect.width + "px";
+						ghost.style.height = rect.height + "px";
+						ghost.style.position = "fixed";
+						ghost.style.top = "0";
+						ghost.style.left = "0";
+						ghost.style.margin = "0";
+						ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+
+						const spacer = header.createEl("div", { cls: "ai-sidebar-tab-spacer" });
+						btn.before(spacer);
+						btn.style.display = "none";
+
+						dragState.ghost = ghost;
+						dragState.spacer = spacer;
+					}
+
+					if (dragState.isDragging) {
+						const ghost = dragState.ghost;
+						const spacer = dragState.spacer;
+						const moveDx = moveEvent.clientX - dragState.startX;
+						const moveDy = moveEvent.clientY - dragState.startY;
+						ghost.style.transform = `translate3d(${dragState.initialRect.left + moveDx}px, ${dragState.initialRect.top + moveDy}px, 0)`;
+
+						const visibleTabs = Array.from(header.querySelectorAll(".ai-sidebar-tab")).filter(
+							(t) => (t as HTMLElement).style.display !== "none" && !t.hasClass("ai-sidebar-tab-ghost")
+						) as HTMLElement[];
+
+						let inserted = false;
+						for (const tab of visibleTabs) {
+							const r = tab.getBoundingClientRect();
+							if (moveEvent.clientX < r.left + r.width / 2) {
+								tab.before(spacer);
+								inserted = true;
+								break;
+							}
+						}
+						if (!inserted && visibleTabs.length > 0) {
+							visibleTabs[visibleTabs.length - 1].after(spacer);
+						}
+					}
+				};
+
+				const onMouseUp = async () => {
+					document.removeEventListener("mousemove", onMouseMove);
+					document.removeEventListener("mouseup", onMouseUp);
+					if (!dragState) return;
+					const state = dragState;
+					dragState = null;
+
+					if (!state.isDragging) {
+						this.switchProvider(provider.id);
+						return;
+					}
+
+					const { id, ghost, spacer, btn } = state;
+					const order = this.openProviderIds;
+					const fromIndex = order.indexOf(id);
+					if (fromIndex === -1) {
+						btn.style.display = "";
+						ghost.remove();
+						spacer.remove();
+						this.renderTabsHeader(header);
+						return;
+					}
+
+					let insertVisualIndex = 0;
+					let seenTabs = 0;
+					let foundSpacer = false;
+					for (let i = 0; i < header.children.length; i++) {
+						const child = header.children[i];
+						if (child === spacer) {
+							insertVisualIndex = seenTabs;
+							foundSpacer = true;
+							break;
+						}
+						if (
+							child.classList.contains("ai-sidebar-tab") &&
+							(child as HTMLElement).style.display !== "none" &&
+							!child.hasClass("ai-sidebar-tab-ghost")
+						) {
+							seenTabs++;
+						}
+					}
+					if (!foundSpacer) {
+						insertVisualIndex = seenTabs;
+					}
+
+					btn.style.display = "";
+					order.splice(fromIndex, 1);
+					order.splice(insertVisualIndex, 0, id);
+					ghost.remove();
+					spacer.remove();
+					this.renderTabsHeader(header);
+					// Persist tab order after drag-and-drop
+					this.plugin.persistOpenTabs(this);
+				};
+
+				document.addEventListener("mousemove", onMouseMove);
+				document.addEventListener("mouseup", onMouseUp);
+			});
+		});
+
+		// Search tabs
+		this.searchEntries.forEach((entry) => {
+			const searchBtn = header.createEl("button", { cls: "ai-sidebar-tab ai-sidebar-tab-search" });
+			searchBtn.setAttribute("data-provider", "__search__");
+			searchBtn.setAttribute("data-search-id", entry.id);
+			const iconImg = searchBtn.createEl("img", { cls: "ai-sidebar-tab-icon", attr: { src: entry.engineIconUrl, alt: entry.engineName } });
+			iconImg.addEventListener("error", () => {
+				iconImg.src = AI_ICONS.google;
+			});
+			searchBtn.setAttribute("aria-label", entry.engineName);
+			searchBtn.setAttribute("title", entry.isDirectUrl ? entry.url : entry.engineName);
+			const closeBtn = searchBtn.createEl("span", { cls: "ai-sidebar-tab-close", text: "×" });
+			closeBtn.addEventListener("click", (e: MouseEvent) => {
+				e.stopPropagation();
+				const idx = this.searchEntries.findIndex((en) => en.id === entry.id);
+				if (idx !== -1) {
+					this.searchEntries.splice(idx, 1);
+					if (this.activeSearchId === entry.id) {
+						this.activeSearchId = this.searchEntries.length > 0 ? this.searchEntries[this.searchEntries.length - 1].id : null;
+						if (this.activeSearchId) {
+							this.switchToSearch(this.activeSearchId);
+						} else {
+							this.currentProviderId = null;
+							this.showHomePage();
+						}
+					}
+				}
+				this.renderTabsHeader(header);
+			});
+			searchBtn.addEventListener("click", () => {
+				this.switchToSearch(entry.id);
+			});
+		});
+
+		// Refresh button (pushed to right via margin-left:auto)
+		const refreshBtn = header.createEl("button", {
+			cls: "ai-sidebar-titlebar-btn",
+			attr: { "aria-label": _t("refresh"), title: _t("refresh"), style: "margin-left:auto;" },
+		});
+		setIcon(refreshBtn, "refresh-cw");
+		refreshBtn.addEventListener("click", () => this.refresh());
+
+		this.updateActiveTab();
+	}
+
+	// ── Home Page ──
+	renderHomePage(home: HTMLElement): void {
+		home.empty();
+		const _t = (key: string) => t(this.plugin.settings.lang, key);
+
+		// Welcome
+		const welcome = home.createEl("div", { cls: "ai-sidebar-welcome" });
+		welcome.createEl("h1", { cls: "ai-sidebar-welcome-title", text: _t("welcomeTitle") });
+
+		// Search section (pill shape with engine icon inside)
+		const searchSection = home.createEl("div", { cls: "ai-sidebar-search-section" });
+
+		const engines = DEFAULT_SEARCH_ENGINES;
+		const activeId = this.plugin.settings.activeSearchEngine;
+		let activeEngine = engines.find((e) => e.id === activeId) || engines[0];
+		if (!activeEngine && engines.length > 0) activeEngine = engines[0];
+
+		const searchWrapper = searchSection.createEl("div", { cls: "ai-sidebar-search-wrapper" });
+
+		// Engine icon + switcher inside search box
+		const engineSwitch = searchWrapper.createEl("div", { cls: "ai-sidebar-engine-switch" });
+		const engineIconBtn = engineSwitch.createEl("button", { cls: "ai-sidebar-engine-switch-btn" });
+		const engineIconImg = engineIconBtn.createEl("img", { cls: "ai-sidebar-engine-switch-img" });
+
+		function updateEngineIcon(): void {
+			const engine = DEFAULT_SEARCH_ENGINES.find((eng) => eng.id === this.plugin.settings.activeSearchEngine);
+			const iconUrl = engine?.iconDataUrl || AI_ICONS[this.plugin.settings.activeSearchEngine] || AI_ICONS.google;
+			engineIconImg.src = iconUrl;
+			engineIconImg.alt = engine?.name || "Search";
+		}
+		updateEngineIcon.call(this);
+
+		// Engine switch dropdown/popover
+		const engineMenu = engineSwitch.createEl("div", { cls: "ai-sidebar-engine-menu", attr: { style: "display:none" } });
+		engines.forEach((engine) => {
+			const item = engineMenu.createEl("div", { cls: "ai-sidebar-engine-menu-item" });
+			const iconUrl = engine.iconDataUrl || AI_ICONS[engine.id] || AI_ICONS.google;
+			item.createEl("img", { cls: "ai-sidebar-engine-menu-item-icon", attr: { src: iconUrl, alt: engine.name } });
+			item.createEl("span", { cls: "ai-sidebar-engine-menu-item-name", text: engine.name });
+			if (engine.id === activeEngine?.id) item.addClass("ai-sidebar-engine-menu-item-active");
+			item.addEventListener("click", () => {
+				this.plugin.settings.activeSearchEngine = engine.id;
+				this.plugin.saveSettings();
+				engineMenu.querySelectorAll(".ai-sidebar-engine-menu-item").forEach((el) => el.removeClass("ai-sidebar-engine-menu-item-active"));
+				item.addClass("ai-sidebar-engine-menu-item-active");
+				updateEngineIcon.call(this);
+				engineMenu.style.display = "none";
+			});
+		});
+
+		engineIconBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const isHidden = engineMenu.style.display === "none";
+			engineMenu.style.display = isHidden ? "block" : "none";
+		});
+		// Close menu when clicking outside
+		const closeEngineMenu = () => { engineMenu.style.display = "none"; };
+		searchWrapper.addEventListener("click", (e) => {
+			if (!engineSwitch.contains(e.target as Node)) closeEngineMenu();
+		});
+
+		const searchInput = searchWrapper.createEl("input", {
+			cls: "ai-sidebar-search-input",
+			attr: { type: "text", placeholder: _t("searchPlaceholder") },
+		});
+		searchInput.style.setProperty("outline", "none", "important");
+		searchInput.style.setProperty("box-shadow", "none", "important");
+		searchInput.addEventListener("focus", () => {
+			searchInput.style.setProperty("outline", "none", "important");
+			searchInput.style.setProperty("box-shadow", "none", "important");
+			searchWrapper.style.setProperty("box-shadow", "0 1px 3px rgba(0,0,0,0.06)", "important");
+		});
+		searchInput.addEventListener("blur", () => {
+			searchWrapper.style.setProperty("box-shadow", "0 1px 3px rgba(0,0,0,0.06)", "important");
+		});
+
+		searchInput.addEventListener("keydown", (e) => {
+			if (e.key !== "Enter") return;
+			e.preventDefault();
+			const query = searchInput.value.trim();
+			if (!query) return;
+
+			let entry: SearchEntry;
+			if (isUrl(query)) {
+				const url = normalizeUrl(query);
+				entry = {
+					id: generateId(),
+					url,
+					engineId: "__url__",
+					engineName: query,
+					engineIconUrl: getFaviconUrl(query),
+					isDirectUrl: true,
+				};
+			} else {
+				const engine = DEFAULT_SEARCH_ENGINES.find((eng) => eng.id === this.plugin.settings.activeSearchEngine);
+				if (!engine) return;
+				const url = engine.url.replace("{query}", encodeURIComponent(query));
+				entry = {
+					id: generateId(),
+					url,
+					engineId: engine.id,
+					engineName: engine.name,
+					engineIconUrl: engine.iconDataUrl || AI_ICONS[engine.id] || AI_ICONS.google,
+				};
+			}
+			this.searchEntries.push(entry);
+			this.activeSearchId = entry.id;
+			if (!this.webview) {
+				this.createWebview();
+			}
+			if (this.webview) {
+				this.webview.setAttribute("src", entry.url);
+			}
+			this.hideHomePage();
+			this.currentProviderId = "__search__";
+			this.updateActiveTab();
+			if (this.tabsHeaderEl) {
+				this.renderTabsHeader(this.tabsHeaderEl);
+			}
+			searchInput.value = "";
+		});
+
+		// AI Grid
+		const grid = home.createEl("div", { cls: "ai-sidebar-ai-grid" });
+		const orderedProviders = this.plugin.settings.providerOrder
+			.map((id) => BUILTIN_PROVIDERS.find((p) => p.id === id))
+			.filter(Boolean) as Provider[];
+
+		orderedProviders.forEach((builtinProvider) => {
+			const card = grid.createEl("div", { cls: "ai-sidebar-ai-card", attr: { title: builtinProvider.name, draggable: "true" } });
+
+			const iconWrap = card.createEl("div", { cls: "ai-sidebar-ai-card-icon" });
+			if (builtinProvider.iconDataUrl) {
+				const img = iconWrap.createEl("img");
+				img.src = builtinProvider.iconDataUrl;
+				img.alt = builtinProvider.name;
+				img.draggable = false;
+			}
+
+			card.createEl("span", { cls: "ai-sidebar-ai-card-name", text: builtinProvider.name });
+
+			card.addEventListener("click", () => {
+				if (!this.openProviderIds.includes(builtinProvider.id)) {
+					this.openProviderIds.push(builtinProvider.id);
+					this.plugin.persistOpenTabs(this);
+				}
+				if (!this.webview) {
+					this.createWebview();
+				}
+				this.switchProvider(builtinProvider.id);
+				if (this.tabsHeaderEl) {
+					this.renderTabsHeader(this.tabsHeaderEl);
+				}
+			});
+
+			// Drag & drop reordering
+			card.addEventListener("dragstart", (e) => {
+				e.stopPropagation();
+				e.dataTransfer?.setData("text/plain", builtinProvider.id);
+				card.style.opacity = "0.4";
+			});
+			card.addEventListener("dragover", (e) => {
+				e.preventDefault();
+				if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+			});
+			card.addEventListener("drop", (e) => {
+				e.preventDefault();
+				const draggedId = e.dataTransfer?.getData("text/plain");
+				const targetId = builtinProvider.id;
+				if (!draggedId || draggedId === targetId) return;
+				const order = [...this.plugin.settings.providerOrder];
+				const fromIdx = order.indexOf(draggedId);
+				const toIdx = order.indexOf(targetId);
+				if (fromIdx === -1 || toIdx === -1) return;
+				order.splice(fromIdx, 1);
+				order.splice(toIdx, 0, draggedId);
+				this.plugin.settings.providerOrder = order;
+				this.renderHomePage(this.homePageEl!);
+				void this.plugin.saveSettings();
+			});
+			card.addEventListener("dragend", () => {
+				card.style.opacity = "1";
+			});
+		});
+	}
+
+	// ── Home page visibility ──
+	showHomePage(): void {
+		this.isHomePage = true;
+		this.currentProviderId = null;
+		if (this.homePageEl) {
+			this.homePageEl.style.display = "flex";
+			this.homePageEl.style.opacity = "1";
+			this.homePageEl.style.pointerEvents = "auto";
+		}
+		this.hideLoading();
+		// Remove empty state if present
+		const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
+		if (emptyEl) emptyEl.remove();
+		this.updateActiveTab();
+	}
+
+	hideHomePage(): void {
+		this.isHomePage = false;
+		if (this.homePageEl) {
+			this.homePageEl.style.display = "none";
+			this.homePageEl.style.opacity = "0";
+			this.homePageEl.style.pointerEvents = "none";
+		}
+	}
+
+	// ── Webview ──
+	createWebview(): void {
+		if (!this.contentElInner || this.webview) return;
+
+		const emptyEl = this.contentElInner.querySelector(".ai-sidebar-empty");
+		if (emptyEl) emptyEl.remove();
+
+		const webview = document.createElement("webview");
+		webview.addClass("ai-sidebar-webview");
+		webview.setAttribute("webpreferences", "contextIsolation=yes, sandbox=yes");
+		const rawAppId = String((this.app as any).appId || "default");
+		const safeAppId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, "-");
+		(webview as any).partition = "persist:vault-" + safeAppId;
+		// NOTE: Do NOT set display:none here. Electron webview fails to
+		// recalculate its layout when switching from display:none to block.
+		// The homepage overlays this via z-index instead.
+		this.contentElInner.appendChild(webview);
+
+		webview.addEventListener("dom-ready", () => {
+			this.onWebviewReady();
+		});
+
+		webview.addEventListener("did-navigate", () => {
+			this.applyTheme();
+		});
+
+		webview.addEventListener("did-start-loading", () => {
+			this.showLoading();
+		});
+
+		webview.addEventListener("did-stop-loading", () => {
+			this.hideLoading();
+		});
+
+		webview.addEventListener("did-fail-load", (event: any) => {
+			this.hideLoading();
+			const errorCode = event.errorCode;
+			if (errorCode !== -3) {
+				// If a direct URL failed to load, fall back to search
+				const entry = this.activeSearchId
+					? this.searchEntries.find((e) => e.id === this.activeSearchId)
+					: undefined;
+				if (entry?.isDirectUrl) {
+					const idx = this.searchEntries.findIndex((e) => e.id === entry.id);
+					if (idx !== -1) this.searchEntries.splice(idx, 1);
+					const engine = DEFAULT_SEARCH_ENGINES.find((eng) => eng.id === this.plugin.settings.activeSearchEngine) || DEFAULT_SEARCH_ENGINES[0];
+					const searchUrl = engine.url.replace("{query}", encodeURIComponent(entry.engineName));
+					const newEntry: SearchEntry = {
+						id: generateId(),
+						url: searchUrl,
+						engineId: engine.id,
+						engineName: engine.name,
+						engineIconUrl: engine.iconDataUrl || AI_ICONS[engine.id] || AI_ICONS.google,
+					};
+					this.searchEntries.push(newEntry);
+					this.activeSearchId = newEntry.id;
+					if (this.webview) {
+						try { this.webview.loadURL(searchUrl); } catch { /* ignore */ }
+					}
+					if (this.tabsHeaderEl) {
+						this.renderTabsHeader(this.tabsHeaderEl);
+					}
+				}
+			}
+		});
+
+		webview.addEventListener("destroyed", () => {
+			this.webview = null;
+		});
+
+		this.webview = webview;
+	}
+
+	onWebviewReady(): void {
+		if (!this.webview) return;
+		this.applyTheme();
+	}
+
+	async onClose(): Promise<void> {
+		// Persist open tabs before the view is destroyed
+		this.plugin.persistOpenTabs(this);
+		this.webview = null;
+		this.contentElInner = null;
+		this.titlebarEl = null;
+		this.tabsHeaderEl = null;
+		this.loadingEl = null;
+		this.homePageEl = null;
+	}
+
+	switchProvider(id: string): void {
+		if (!this.openProviderIds.includes(id)) {
+			this.openProviderIds.push(id);
+			this.plugin.persistOpenTabs(this);
+		}
+		const isAlreadyActive = this.currentProviderId === id;
+		this.currentProviderId = id;
+		const provider = BUILTIN_PROVIDERS.find((p) => p.id === id);
+		if (!this.webview) {
+			this.createWebview();
+		}
+		if (this.webview && provider && !isAlreadyActive) {
+			this.webview?.setAttribute("src", provider.url);
+		}
+		this.hideHomePage();
+		this.updateActiveTab();
+		if (!isAlreadyActive) {
+			setTimeout(() => this.applyTheme(), 500);
+		}
+	}
+
+	switchToSearch(entryId?: string): void {
+		if (!this.webview) {
+			this.createWebview();
+		}
+		const id = entryId || this.activeSearchId;
+		if (!id) return;
+		const entry = this.searchEntries.find((e) => e.id === id);
+		if (!entry) return;
+		const isAlreadyActive = this.currentProviderId === "__search__" && this.activeSearchId === id;
+		this.activeSearchId = id;
+		this.currentProviderId = "__search__";
+		if (!isAlreadyActive) {
+			this.webview.setAttribute("src", entry.url);
+		}
+		this.hideHomePage();
+		this.updateActiveTab();
+	}
+
+	updateActiveTab(): void {
+		if (!this.tabsHeaderEl) return;
+		const tabs = this.tabsHeaderEl.querySelectorAll(".ai-sidebar-tab");
+		tabs.forEach((tab) => {
+			const provider = tab.getAttribute("data-provider");
+			if (provider === this.currentProviderId) {
+				if (provider === "__search__") {
+					const sid = tab.getAttribute("data-search-id");
+					if (sid && sid === this.activeSearchId) {
+						tab.addClass("is-active");
+					} else {
+						tab.removeClass("is-active");
+					}
+				} else {
+					tab.addClass("is-active");
+				}
+			} else {
+				tab.removeClass("is-active");
+			}
+		});
+	}
+
+	applyTheme(): void {
+		if (!this.webview) return;
+		const mode = this.plugin.settings.themeMode;
+		let isDark = false;
+		if (mode === "dark") {
+			isDark = true;
+		} else if (mode === "system") {
+			isDark = document.body.hasClass("theme-dark");
+		}
+
+		const js = `
+(function(){
+  var id = 'ai-sidebar-theme-style';
+  var style = document.getElementById(id);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = id;
+    document.head.appendChild(style);
+  }
+  style.textContent = "${THEME_INJECT_CSS_ESCAPED}";
+  document.documentElement.classList.toggle('ai-sidebar-force-dark', ${isDark});
+})();
+`;
+		this.runInWebview(js);
+	}
+
+	// ── Webview actions ──
+	goHome(): void {
+		const provider = this.currentProviderId
+			? BUILTIN_PROVIDERS.find((p) => p.id === this.currentProviderId)
+			: undefined;
+		if (this.webview && provider) {
+			this.webview.loadURL(provider.url);
+		}
+	}
+
+	goBack(): void {
+		if (this.webview) this.webview.goBack();
+	}
+
+	goForward(): void {
+		if (this.webview) this.webview.goForward();
+	}
+
+	refresh(): void {
+		if (this.isHomePage) {
+			// Refresh homepage (re-render)
+			if (this.homePageEl) this.renderHomePage(this.homePageEl);
+			return;
+		}
+		if (this.webview) this.webview.reload();
+	}
+
+	copyLink(): void {
+		if (!this.webview) return;
+		const url = this.webview.getURL();
+		navigator.clipboard.writeText(url);
+		new Notice(t(this.plugin.settings.lang, "linkCopied"));
+	}
+
+	openInBrowser(): void {
+		if (!this.webview) return;
+		window.open(this.webview.getURL(), "_blank");
+	}
+
+	toggleDevTools(): void {
+		if (!this.webview) return;
+		if (this.webview.isDevToolsOpened()) {
+			this.webview.closeDevTools();
+		} else {
+			this.webview.openDevTools();
+		}
+	}
+
+	// ── Injection ──
+	async injectCurrentNote(): Promise<void> {
+		const _t = (key: string, ...args: string[]) => t(this.plugin.settings.lang, key, ...args);
+		if (!this.plugin.settings.enableSendNote) {
+			new Notice(_t("enableSendNote"));
+			return;
+		}
+		const file = this.app.workspace.getActiveFile();
+		if (!file) {
+			new Notice(_t("noActiveNote"));
+			return;
+		}
+		let content = await this.app.vault.cachedRead(file);
+		if (!content || content.trim().length === 0) {
+			new Notice(_t("emptyNote"));
+			return;
+		}
+		const maxChars = this.plugin.settings.sendNoteMaxChars;
+		let wasTruncated = false;
+		if (content.length > maxChars) {
+			content = content.substring(0, maxChars) + "\n\n[...]";
+			wasTruncated = true;
+		}
+		await this.injectRawText(content, _t("sentNote", file.name));
+		if (wasTruncated) {
+			new Notice(_t("contentTruncated", String(maxChars)));
+		}
+	}
+
+	async injectRawText(text: string, successMessage?: string): Promise<void> {
+		const _t = (key: string, ...args: string[]) => t(this.plugin.settings.lang, key, ...args);
+		const base64Prompt = encodeTextToBase64(text);
+
+		const js = `
+(function(){
+  function findInput() {
+    function searchShadow(root, sel) {
+      var found = root.querySelectorAll(sel);
+      for (var i = 0; i < found.length; i++) {
+        var rect = found[i].getBoundingClientRect();
+        if (rect.width > 60 && rect.height > 16) return found[i];
+      }
+      var hosts = root.querySelectorAll('*');
+      for (var i = 0; i < hosts.length; i++) {
+        if (hosts[i].shadowRoot) {
+          var res = searchShadow(hosts[i].shadowRoot, sel);
+          if (res) return res;
+        }
+      }
+      return null;
+    }
+    var shadowEl = searchShadow(document, 'textarea, input[type="text"], [contenteditable]');
+    if (shadowEl) return shadowEl;
+    var all = Array.from(document.querySelectorAll('textarea:not([readonly]), input[type="text"]:not([readonly]), [contenteditable="true"], [contenteditable=""], [role="textbox"]'));
+    all = all.filter(function(el) {
+      var rect = el.getBoundingClientRect();
+      return rect.width > 60 && rect.height > 16;
+    });
+    all.sort(function(a, b) {
+      var rA = a.getBoundingClientRect();
+      var rB = b.getBoundingClientRect();
+      return (rB.width * rB.height) - (rA.width * rA.height);
+    });
+    return all[0] || null;
+  }
+  var el = findInput();
+  if (!el) {
+    return { success: false, reason: "No input element found." };
+  }
+  var base64Prompt = "${base64Prompt}";
+  var bytes = Uint8Array.from(window.atob(base64Prompt), function(c) { return c.charCodeAt(0); });
+  var promptText = new TextDecoder().decode(bytes);
+  if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+    el.focus();
+    if (typeof el.setRangeText === 'function') {
+      el.setRangeText(promptText, 0, el.value.length, 'end');
+    } else {
+      el.value = promptText;
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  } else if (el.isContentEditable || el.getAttribute('contenteditable')) {
+    el.focus();
+    var ok = document.execCommand('selectAll', false, null);
+    ok = document.execCommand('insertText', false, promptText);
+    if (!ok) {
+      el.innerText = promptText;
+    }
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: promptText }));
+  } else {
+    return { success: false, reason: "Element type not supported." };
+  }
+  return { success: true };
+})();
+`;
+
+		try {
+			const result = await this.runInWebview(js, true);
+			if (result && result.success) {
+				if (successMessage) new Notice(successMessage);
+			} else {
+				new Notice(_t("injectNoInput", result?.reason || "Unknown error"));
+			}
+		} catch (e) {
+			new Notice(_t("injectFailed", (e as Error).message));
+		}
+	}
+
+	async runInWebview(js: string, awaitResult = false): Promise<any> {
+		if (!this.webview) return null;
+		const run = () => this.webview.executeJavaScript(js, false);
+		if (awaitResult) {
+			try { return await run(); } catch (e) { throw e; }
+		}
+		run().catch(() => {});
+		return null;
+	}
+
+	refreshTabs(): void {
+		if (this.tabsHeaderEl) {
+			this.renderTabsHeader(this.tabsHeaderEl);
+		}
+		if (this.titlebarEl) {
+			this.renderTitlebar(this.titlebarEl);
+		}
+		if (this.homePageEl) {
+			this.renderHomePage(this.homePageEl);
+		}
+		// If current provider was closed, go home or to last search
+		if (this.currentProviderId && this.currentProviderId !== "__search__" && !this.openProviderIds.includes(this.currentProviderId)) {
+			if (this.searchEntries.length > 0) {
+				this.switchToSearch();
+			} else {
+				this.currentProviderId = null;
+				this.showHomePage();
+			}
+		}
+		this.applyTheme();
+	}
+
+	
+
+	showLoading(): void {
+		if (this.loadingEl) {
+			this.loadingEl.style.display = "flex";
+		}
+	}
+
+	hideLoading(): void {
+		if (this.loadingEl) {
+			this.loadingEl.style.display = "none";
+		}
+	}
+}
+
+// ── Settings Tab ──
+
+type SettingsTab = "general" | "prompts";
+
+export class AiSidebarSettingTab extends PluginSettingTab {
+	plugin: AiSidebarPlugin;
+
+	constructor(app: App, plugin: AiSidebarPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	activeTab: SettingsTab = "general";
+
+	private setTab(tab: SettingsTab): void {
+		this.activeTab = tab;
+		this.display();
+	}
+
+	display(): void {
+		const { containerEl } = this;
+		const _t = (key: string, ...args: string[]) => t(this.plugin.settings.lang, key, ...args);
+		containerEl.empty();
+
+		new Setting(containerEl).setHeading().setName("🤖 " + _t("pluginName") + " " + _t("settings"));
+
+		// ── Tab Navigation ──
+		const tabNav = containerEl.createEl("div", { cls: "ai-sidebar-settings-tabs" });
+		const tabs: { id: SettingsTab; label: string; icon: string }[] = [
+			{ id: "general", label: _t("tabGeneral"), icon: "settings" },
+			{ id: "prompts", label: _t("tabPrompts"), icon: "message-square-text" },
+		];
+		tabs.forEach((tab) => {
+			const btn = tabNav.createEl("button", { cls: "ai-sidebar-settings-tab" });
+			btn.setAttribute("data-tab", tab.id);
+			const iconSpan = btn.createEl("span", { cls: "ai-sidebar-settings-tab-icon" });
+			setIcon(iconSpan, tab.icon);
+			btn.createEl("span", { text: tab.label });
+			btn.addEventListener("click", () => this.setTab(tab.id));
+			if (this.activeTab === tab.id) btn.addClass("is-active");
+		});
+
+		const contentArea = containerEl.createEl("div", { cls: "ai-sidebar-settings-tab-content" });
+		switch (this.activeTab) {
+			case "general":
+				this.renderGeneralTab(contentArea);
+				break;
+			case "prompts":
+				this.renderPromptsTab(contentArea);
+				break;
+		}
+	}
+
+	// ── General Tab ──
+	renderGeneralTab(containerEl: HTMLElement): void {
+		const _t = (key: string, ...args: string[]) => t(this.plugin.settings.lang, key, ...args);
+
+		new Setting(containerEl)
+			.setName(_t("language"))
+			.setDesc(_t("languageDesc"))
+			.addDropdown((drop) =>
+				drop
+					.addOption("zh", "中文")
+					.addOption("en", "English")
+					.setValue(this.plugin.settings.lang)
+					.onChange(async (value) => {
+						this.plugin.settings.lang = value as Lang;
+						await this.plugin.saveSettings();
+						this.display();
+						this.plugin.refreshView();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(_t("themeMode"))
+			.setDesc(_t("themeModeDesc"))
+			.addDropdown((drop) =>
+				drop
+					.addOption("light", _t("light"))
+					.addOption("dark", _t("dark"))
+					.addOption("system", _t("followSystem"))
+					.setValue(this.plugin.settings.themeMode)
+					.onChange(async (value) => {
+						this.plugin.settings.themeMode = value as "light" | "dark" | "system";
+						await this.plugin.saveSettings();
+						this.plugin.refreshView();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(_t("enableSendSelection"))
+			.setDesc(_t("enableSendSelectionDesc"))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableSendSelection)
+					.onChange(async (value) => {
+						this.plugin.settings.enableSendSelection = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(_t("enableSendNote"))
+			.setDesc(_t("enableSendNoteDesc"))
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableSendNote)
+					.onChange(async (value) => {
+						this.plugin.settings.enableSendNote = value;
+						await this.plugin.saveSettings();
+						this.plugin.refreshView();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(_t("sendNoteMaxChars"))
+			.setDesc(_t("sendNoteMaxCharsDesc"))
+			.addText((text) => {
+				text.inputEl.type = "number";
+				text.setValue(String(this.plugin.settings.sendNoteMaxChars));
+				text.onChange(async (value) => {
+					const num = Number(value);
+					this.plugin.settings.sendNoteMaxChars = isNaN(num) || num < 1000 ? 8000 : num;
+					await this.plugin.saveSettings();
+				});
+			});
+	}
+
+	// ── Prompts Tab ──
+	renderPromptsTab(containerEl: HTMLElement): void {
+		const _t = (key: string, ...args: string[]) => t(this.plugin.settings.lang, key, ...args);
+
+		const ptHeader = containerEl.createEl("div", { cls: "ai-sidebar-settings-header" });
+		ptHeader.createEl("span", { cls: "ai-sidebar-settings-subtitle", text: _t("promptTemplates") });
+		const ptActions = ptHeader.createEl("div", { cls: "ai-sidebar-settings-header-actions" });
+		const ptResetBtn = ptActions.createEl("button", { cls: "ai-sidebar-settings-text-btn", text: _t("resetDefaults") });
+		ptResetBtn.addEventListener("click", async () => {
+			this.plugin.settings.promptTemplates = JSON.parse(JSON.stringify(DEFAULT_PROMPT_TEMPLATES));
+			await this.plugin.saveSettings();
+			this.display();
+		});
+		const ptAddBtn = ptActions.createEl("button", { cls: "ai-sidebar-settings-add-btn", text: _t("addPrompt") });
+		ptAddBtn.addEventListener("click", () => {
+			new PromptTemplateModal(
+				this.app,
+				this.plugin,
+				{ name: "", prompt: "", builtin: false },
+				false,
+				(template) => {
+					const newTemplate: PromptTemplate = {
+						id: generateId(),
+						name: template.name || "New Template",
+						prompt: template.prompt || "",
+						builtin: false,
+					};
+					this.plugin.settings.promptTemplates.push(newTemplate);
+					this.plugin.saveSettings();
+					this.display();
+				}
+			).open();
+		});
+
+		const ptList = containerEl.createEl("div", { cls: "ai-sidebar-provider-list" });
+		this.plugin.settings.promptTemplates.forEach((template, index) => {
+			const row = ptList.createEl("div", { cls: "ai-sidebar-provider-row" });
+			const info = row.createEl("div", { cls: "ai-sidebar-provider-info" });
+			info.createEl("div", { cls: "ai-sidebar-provider-name", text: template.name });
+			info.createEl("div", { cls: "ai-sidebar-provider-url", text: template.prompt.substring(0, 120) + (template.prompt.length > 120 ? "..." : "") });
+
+			const actions = row.createEl("div", { cls: "ai-sidebar-provider-actions" });
+
+			const editBtn = actions.createEl("button", { cls: "ai-sidebar-provider-btn", text: _t("edit") });
+			editBtn.addEventListener("click", () => {
+				new PromptTemplateModal(
+					this.app,
+					this.plugin,
+					{ ...template },
+					true,
+					(updated) => {
+						this.plugin.settings.promptTemplates[index] = {
+							...this.plugin.settings.promptTemplates[index],
+							name: updated.name || template.name,
+							prompt: updated.prompt || template.prompt,
+						};
+						this.plugin.saveSettings();
+						this.display();
+					}
+				).open();
+			});
+
+			const delBtn = actions.createEl("button", { cls: "ai-sidebar-provider-btn ai-sidebar-provider-btn-danger", text: _t("delete") });
+			delBtn.addEventListener("click", async () => {
+				this.plugin.settings.promptTemplates.splice(index, 1);
+				await this.plugin.saveSettings();
+				this.display();
+			});
+		});
+	}
+
+}
+
+// ── Plugin ──
+
+export default class AiSidebarPlugin extends Plugin {
+	settings: AiSidebarSettings = DEFAULT_SETTINGS;
+	private settingsTab: AiSidebarSettingTab | null = null;
+
+	private getLsKey(): string {
+		return `ai-sidebar-tabs-${this.app.vault.getName().replace(/[^a-zA-Z0-9]/g, '_')}`;
+	}
+
+	writeTabBackup(ids: string[]): void {
+		try {
+			localStorage.setItem(this.getLsKey(), JSON.stringify(ids));
+		} catch {
+			/* ignore */
+		}
+	}
+
+	readTabBackup(): string[] {
+		try {
+			const raw = localStorage.getItem(this.getLsKey());
+			if (raw) return JSON.parse(raw) as string[];
+		} catch {
+			/* ignore */
+		}
+		return [];
+	}
+
+	clearTabBackup(): void {
+		try {
+			localStorage.removeItem(this.getLsKey());
+		} catch {
+			/* ignore */
+		}
+	}
+
+	persistOpenTabs(view?: AiSidebarView): void {
+		const ids = view ? [...view.openProviderIds] : this.getCurrentOpenTabs();
+		if (JSON.stringify(this.settings.lastOpenProviderIds) !== JSON.stringify(ids)) {
+			this.settings.lastOpenProviderIds = ids;
+			this.writeTabBackup(ids);
+			void this.saveSettings();
+		}
+	}
+
+	private getCurrentOpenTabs(): string[] {
+		const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+		for (const leaf of leaves) {
+			const view = leaf.view as AiSidebarView;
+			if (view && view.openProviderIds && view.openProviderIds.length > 0) {
+				return [...view.openProviderIds];
+			}
+		}
+		return [];
+	}
+
+	async onload(): Promise<void> {
+		await this.loadSettings();
+
+		this.registerView(
+			AI_SIDEBAR_VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new AiSidebarView(leaf, this)
+		);
+
+		// Auto-save open tabs every 5s as a safety net (saveData is async and may not finish on quit)
+		this.registerInterval(
+			window.setInterval(() => {
+				this.persistOpenTabs();
+			}, 5000)
+		);
+
+		// Ribbon icon
+		const ribbonIcon = this.addRibbonIcon("plane-takeoff", t(this.settings.lang, "openAiSidebar"), () => {
+			void this.activateSidebar();
+		});
+
+		// Right-click context menu on ribbon icon
+		ribbonIcon.addEventListener("contextmenu", (e: MouseEvent) => {
+			e.preventDefault();
+			const menu = new Menu();
+			if (this.settings.enableSendNote) {
+				menu.addItem((item) =>
+					item
+						.setTitle(t(this.settings.lang, "sendCurrentNote"))
+						.setIcon("paste-text")
+						.onClick(() => {
+							this.sendCurrentNoteToSidebar();
+						})
+				);
+			}
+			menu.showAtMouseEvent(e);
+		});
+
+		this.addCommand({
+			id: "open-ai-sidebar",
+			name: t(this.settings.lang, "openAiSidebar"),
+			callback: () => {
+				void this.activateSidebar();
+			},
+		});
+
+		this.addCommand({
+			id: "send-note",
+			name: t(this.settings.lang, "sendNoteCommand"),
+			checkCallback: (checking) => {
+				if (!this.settings.enableSendNote) return false;
+				const file = this.app.workspace.getActiveFile();
+				if (!file) return false;
+				if (!checking) {
+					this.sendCurrentNoteToSidebar();
+				}
+				return true;
+			},
+		});
+
+		// Editor context menu: send selection to AI
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor) => {
+				if (!this.settings.enableSendSelection) return;
+				const selection = editor.getSelection();
+				if (selection) {
+					menu.addItem((item) =>
+						item
+							.setTitle(t(this.settings.lang, "sendSelection"))
+							.setIcon("paste-text")
+							.onClick(() => {
+								this.sendSelectionToSidebar(editor, selection);
+							})
+					);
+				}
+			})
+		);
+
+		// Folder context menu
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				if (file instanceof TFolder) {
+					menu.addItem((item) =>
+						item
+							.setTitle(t(this.settings.lang, "openFolderContext"))
+							.setIcon("bot")
+							.onClick(() => {
+								void this.activateSidebar();
+								setTimeout(() => {
+									const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+									if (leaves.length > 0 && leaves[0].view instanceof AiSidebarView) {
+										(leaves[0].view as AiSidebarView).injectCurrentNote();
+									}
+								}, 300);
+							})
+					);
+				}
+			})
+		);
+
+		this.settingsTab = new AiSidebarSettingTab(this.app, this);
+		this.addSettingTab(this.settingsTab);
+	}
+
+	onunload(): void {
+		// Persist open tabs from all active views before shutdown (sync localStorage backup)
+		const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+		for (const leaf of leaves) {
+			const view = leaf.view as AiSidebarView;
+			if (view && view.openProviderIds) {
+				this.settings.lastOpenProviderIds = [...view.openProviderIds];
+			}
+		}
+		this.writeTabBackup(this.settings.lastOpenProviderIds);
+		void this.saveSettings();
+		// Obsidian automatically cleans up registered events and views.
+		// Do NOT detach leaves here per developer guidelines.
+	}
+
+	async loadSettings(): Promise<void> {
+		const saved = await this.loadData();
+		if (saved) {
+			this.settings = { ...DEFAULT_SETTINGS, ...saved };
+			if (!this.settings.activeSearchEngine) {
+				this.settings.activeSearchEngine = DEFAULT_SEARCH_ENGINES[0].id;
+			}
+			if (!this.settings.promptTemplates || this.settings.promptTemplates.length === 0) {
+				this.settings.promptTemplates = JSON.parse(JSON.stringify(DEFAULT_PROMPT_TEMPLATES));
+			}
+			// Initialize providerOrder for upgrades / new installs
+			if (!this.settings.providerOrder || this.settings.providerOrder.length === 0) {
+				this.settings.providerOrder = BUILTIN_PROVIDERS.map((p) => p.id);
+			}
+			// Append any new builtin providers that aren't in the order yet
+			BUILTIN_PROVIDERS.forEach((p) => {
+				if (!this.settings.providerOrder.includes(p.id)) {
+					this.settings.providerOrder.push(p.id);
+				}
+			});
+			// Ensure lastOpenProviderIds exists
+			if (!this.settings.lastOpenProviderIds) {
+				this.settings.lastOpenProviderIds = [];
+			}
+		} else {
+			this.settings = { ...DEFAULT_SETTINGS };
+		}
+	}
+
+	async saveSettings(): Promise<void> {
+		await this.saveData(this.settings);
+	}
+
+	async activateSidebar(): Promise<void> {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			leaf = workspace.getRightLeaf(false) || workspace.getLeaf(true);
+			await leaf.setViewState({ type: AI_SIDEBAR_VIEW_TYPE, active: true });
+		}
+
+		await workspace.revealLeaf(leaf);
+	}
+
+	refreshView(): void {
+		const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+		for (const leaf of leaves) {
+			if (leaf.view instanceof AiSidebarView) {
+				leaf.view.refreshTabs();
+				leaf.view.applyTheme();
+			}
+		}
+	}
+
+	refreshSettingsTab(): void {
+		if (this.settingsTab) {
+			this.settingsTab.display();
+		}
+	}
+
+	async sendCurrentNoteToSidebar(): Promise<void> {
+		await this.activateSidebar();
+		setTimeout(() => {
+			const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+			if (leaves.length > 0 && leaves[0].view instanceof AiSidebarView) {
+				(leaves[0].view as AiSidebarView).injectCurrentNote();
+			}
+		}, 300);
+	}
+
+	async sendSelectionToSidebar(editor: any, selection: string): Promise<void> {
+		const file = this.app.workspace.getActiveFile();
+		if (!file) return;
+
+		await this.activateSidebar();
+		setTimeout(() => {
+			const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+			if (leaves.length > 0 && leaves[0].view instanceof AiSidebarView) {
+				(leaves[0].view as AiSidebarView).injectRawText(selection);
+			}
+		}, 300);
+	}
+}

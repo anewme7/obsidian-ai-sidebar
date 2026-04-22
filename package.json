@@ -1,0 +1,25 @@
+{
+  "name": "ai-sidebar",
+  "version": "0.1",
+  "description": "Obsidian's sidebar plugin for integrating multiple online AI platforms.",
+  "main": "main.js",
+  "scripts": {
+    "build": "esbuild main.ts --bundle --outfile=main.js --external:obsidian --format=cjs",
+    "dev": "esbuild main.ts --bundle --outfile=main.js --external:obsidian --format=cjs --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["obsidian", "plugin", "ai", "sidebar", "chatgpt", "gemini", "deepseek"],
+  "author": "kk",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kk/obsidian-ai-sidebar.git"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.28.0",
+    "obsidian": "^1.12.3",
+    "typescript": "^6.0.2"
+  }
+}
