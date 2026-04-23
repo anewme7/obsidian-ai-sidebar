@@ -4,6 +4,9 @@
 
 在 Obsidian 侧边栏中聚合多个在线 AI 平台和搜索引擎。
 
+<img width="750" height="652" alt="image" src="https://github.com/user-attachments/assets/04ade162-fd8f-46af-b712-52f98a9bbeab" />
+
+
 ## ✨ 功能
 
 - **12 个内置 AI**：DeepSeek、Kimi、豆包、千问、元宝、文心一言、Copilot、Z.ai、Gemini、ChatGPT、Claude、Grok
@@ -59,6 +62,8 @@ MIT
 # Obsidian AI Sidebar
 
 Aggregate multiple online AI platforms and search engines in Obsidian's sidebar.
+
+<img width="750" height="652" alt="image" src="https://github.com/user-attachments/assets/04ade162-fd8f-46af-b712-52f98a9bbeab" />
 
 ## Features
 
