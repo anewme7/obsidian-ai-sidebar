@@ -85,7 +85,8 @@ var DEFAULT_SETTINGS = {
   activeSearchEngine: "google",
   promptTemplates: JSON.parse(JSON.stringify(DEFAULT_PROMPT_TEMPLATES)),
   providerOrder: BUILTIN_PROVIDERS.map((p) => p.id),
-  lastOpenProviderIds: []
+  lastOpenProviderIds: [],
+  lastSearchEntries: []
 };
 var TRANSLATIONS = {
   en: {
@@ -387,6 +388,10 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       restored = this.plugin.readTabBackup().filter((id) => validIds.has(id));
     }
     this.openProviderIds = restored;
+    this.searchEntries = (this.plugin.settings.lastSearchEntries || []).map((e) => ({
+      ...e,
+      engineIconUrl: e.engineId === "__url__" ? getFaviconUrl(e.url) : DEFAULT_SEARCH_ENGINES.find((eng) => eng.id === e.engineId)?.iconDataUrl || AI_ICONS.google
+    }));
     this.titlebarEl = containerEl.createEl("div", { cls: "ai-sidebar-titlebar" });
     this.renderTitlebar(this.titlebarEl);
     this.tabsHeaderEl = containerEl.createEl("div", { cls: "ai-sidebar-tabs-header" });
@@ -670,6 +675,8 @@ var AiSidebarView = class extends import_obsidian.ItemView {
         const idx = this.searchEntries.findIndex((en) => en.id === entry.id);
         if (idx !== -1) {
           this.searchEntries.splice(idx, 1);
+          this.plugin.settings.lastSearchEntries = [...this.searchEntries];
+          this.plugin.saveSettings();
           this.destroyWebview("__search__" + entry.id);
           if (this.activeSearchId === entry.id) {
             this.activeSearchId = this.searchEntries.length > 0 ? this.searchEntries[this.searchEntries.length - 1].id : null;
@@ -788,6 +795,8 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       }
       this.searchEntries.push(entry);
       this.activeSearchId = entry.id;
+      this.plugin.settings.lastSearchEntries = [...this.searchEntries];
+      this.plugin.saveSettings();
       const searchWvId = "__search__" + entry.id;
       this.getOrCreateWebview(searchWvId, entry.url);
       this.showWebview(searchWvId);
@@ -875,29 +884,25 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   // ── Webview ──
   getOrCreateWebview(id, url) {
     if (this.webviews.has(id)) {
-      const wv = this.webviews.get(id);
-      const currentUrl = wv.getURL?.() || wv.getAttribute("src");
-      if (currentUrl !== url) {
-        wv.setAttribute("src", url);
-      }
-      return wv;
+      return this.webviews.get(id);
     }
     const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
     if (emptyEl) emptyEl.remove();
     const webview = document.createElement("webview");
     webview.addClass("ai-sidebar-webview");
-    webview.setAttribute("webpreferences", "contextIsolation=yes, sandbox=yes");
+    webview.setAttribute("webpreferences", "contextIsolation=yes");
+    webview.useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     const rawAppId = String(this.app.appId || "default");
     const safeAppId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, "-");
-    webview.partition = "persist:vault-" + safeAppId;
+    webview.partition = "persist:ai-sidebar-" + safeAppId;
     webview.setAttribute("src", url);
-    webview.style.display = "none";
+    webview.style.opacity = "0";
+    webview.style.pointerEvents = "none";
     this.contentElInner?.appendChild(webview);
     webview.addEventListener("dom-ready", () => {
       this.onWebviewReady(id);
     });
     webview.addEventListener("did-navigate", () => {
-      this.applyTheme();
     });
     webview.addEventListener("did-start-loading", () => {
       this.showLoading();
@@ -944,9 +949,16 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   }
   showWebview(id) {
     this.webviews.forEach((wv, wvId) => {
-      wv.style.display = wvId === id ? "" : "none";
+      if (wvId === id) {
+        wv.style.opacity = "1";
+        wv.style.pointerEvents = "auto";
+      } else {
+        wv.style.opacity = "0";
+        wv.style.pointerEvents = "none";
+      }
     });
     this.activeWebviewId = id;
+    this.applyTheme();
   }
   getActiveWebview() {
     if (!this.activeWebviewId) return null;
@@ -971,6 +983,8 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   }
   async onClose() {
     this.plugin.persistOpenTabs(this);
+    this.plugin.settings.lastSearchEntries = [...this.searchEntries];
+    this.plugin.saveSettings();
     this.webviews.forEach((wv) => {
       try {
         wv.remove();
@@ -1061,13 +1075,14 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   document.documentElement.classList.toggle('ai-sidebar-force-dark', ${isDark});
 })();
 `;
-    this.webviews.forEach((wv) => {
+    const wv = this.getActiveWebview();
+    if (wv) {
       try {
         wv.executeJavaScript(js, false).catch(() => {
         });
       } catch {
       }
-    });
+    }
   }
   // ── Webview actions ──
   goHome() {
@@ -1439,11 +1454,25 @@ var AiSidebarPlugin = class extends import_obsidian.Plugin {
   }
   persistOpenTabs(view) {
     const ids = view ? [...view.openProviderIds] : this.getCurrentOpenTabs();
-    if (JSON.stringify(this.settings.lastOpenProviderIds) !== JSON.stringify(ids)) {
+    const searchEntries = view ? [...view.searchEntries] : this.getCurrentSearchTabs();
+    const idsChanged = JSON.stringify(this.settings.lastOpenProviderIds) !== JSON.stringify(ids);
+    const searchChanged = JSON.stringify(this.settings.lastSearchEntries) !== JSON.stringify(searchEntries);
+    if (idsChanged || searchChanged) {
       this.settings.lastOpenProviderIds = ids;
+      this.settings.lastSearchEntries = searchEntries;
       this.writeTabBackup(ids);
       void this.saveSettings();
     }
+  }
+  getCurrentSearchTabs() {
+    const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
+    for (const leaf of leaves) {
+      const view = leaf.view;
+      if (view && view.searchEntries && view.searchEntries.length > 0) {
+        return [...view.searchEntries];
+      }
+    }
+    return [];
   }
   getCurrentOpenTabs() {
     const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
@@ -1565,6 +1594,9 @@ var AiSidebarPlugin = class extends import_obsidian.Plugin {
       });
       if (!this.settings.lastOpenProviderIds) {
         this.settings.lastOpenProviderIds = [];
+      }
+      if (!this.settings.lastSearchEntries) {
+        this.settings.lastSearchEntries = [];
       }
     } else {
       this.settings = { ...DEFAULT_SETTINGS };
