@@ -424,7 +424,8 @@ export class PromptTemplateModal extends Modal {
 
 export class AiSidebarView extends ItemView {
 	plugin: AiSidebarPlugin;
-	private webview: any | null = null;
+	private webviews: Map<string, HTMLElement> = new Map();
+	private activeWebviewId: string | null = null;
 	private currentProviderId: string | null = null;
 	private contentElInner: HTMLElement | null = null;
 	private titlebarEl: HTMLElement | null = null;
@@ -461,8 +462,9 @@ export class AiSidebarView extends ItemView {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass("ai-sidebar-container");
-		// Reset webview reference because empty() removed the DOM element
-		this.webview = null;
+		// Reset webviews because empty() removed the DOM elements
+		this.webviews.clear();
+		this.activeWebviewId = null;
 		// Restore opened AI tabs from last session (filter out obsolete IDs)
 		const validIds = new Set(BUILTIN_PROVIDERS.map((p) => p.id));
 		let restored = this.plugin.settings.lastOpenProviderIds.filter((id) => validIds.has(id));
@@ -648,7 +650,8 @@ export class AiSidebarView extends ItemView {
 				const idx = this.openProviderIds.indexOf(provider.id);
 				if (idx !== -1) {
 					this.openProviderIds.splice(idx, 1);
-					this.plugin.persistOpenTabs(this);
+						this.destroyWebview(provider.id);
+						this.plugin.persistOpenTabs(this);
 					if (this.currentProviderId === provider.id) {
 						if (this.openProviderIds.length > 0) {
 							this.switchProvider(this.openProviderIds[this.openProviderIds.length - 1]);
@@ -814,7 +817,8 @@ export class AiSidebarView extends ItemView {
 				const idx = this.searchEntries.findIndex((en) => en.id === entry.id);
 				if (idx !== -1) {
 					this.searchEntries.splice(idx, 1);
-					if (this.activeSearchId === entry.id) {
+						this.destroyWebview("__search__" + entry.id);
+						if (this.activeSearchId === entry.id) {
 						this.activeSearchId = this.searchEntries.length > 0 ? this.searchEntries[this.searchEntries.length - 1].id : null;
 						if (this.activeSearchId) {
 							this.switchToSearch(this.activeSearchId);
@@ -949,12 +953,9 @@ export class AiSidebarView extends ItemView {
 			}
 			this.searchEntries.push(entry);
 			this.activeSearchId = entry.id;
-			if (!this.webview) {
-				this.createWebview();
-			}
-			if (this.webview) {
-				this.webview.setAttribute("src", entry.url);
-			}
+			const searchWvId = "__search__" + entry.id;
+			this.getOrCreateWebview(searchWvId, entry.url);
+			this.showWebview(searchWvId);
 			this.hideHomePage();
 			this.currentProviderId = "__search__";
 			this.updateActiveTab();
@@ -987,9 +988,6 @@ export class AiSidebarView extends ItemView {
 				if (!this.openProviderIds.includes(builtinProvider.id)) {
 					this.openProviderIds.push(builtinProvider.id);
 					this.plugin.persistOpenTabs(this);
-				}
-				if (!this.webview) {
-					this.createWebview();
 				}
 				this.switchProvider(builtinProvider.id);
 				if (this.tabsHeaderEl) {
@@ -1054,10 +1052,17 @@ export class AiSidebarView extends ItemView {
 	}
 
 	// ── Webview ──
-	createWebview(): void {
-		if (!this.contentElInner || this.webview) return;
+	getOrCreateWebview(id: string, url: string): HTMLElement {
+		if (this.webviews.has(id)) {
+			const wv = this.webviews.get(id)!;
+			const currentUrl = (wv as any).getURL?.() || wv.getAttribute("src");
+			if (currentUrl !== url) {
+				(wv as any).setAttribute("src", url);
+			}
+			return wv;
+		}
 
-		const emptyEl = this.contentElInner.querySelector(".ai-sidebar-empty");
+		const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
 		if (emptyEl) emptyEl.remove();
 
 		const webview = document.createElement("webview");
@@ -1066,13 +1071,12 @@ export class AiSidebarView extends ItemView {
 		const rawAppId = String((this.app as any).appId || "default");
 		const safeAppId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, "-");
 		(webview as any).partition = "persist:vault-" + safeAppId;
-		// NOTE: Do NOT set display:none here. Electron webview fails to
-		// recalculate its layout when switching from display:none to block.
-		// The homepage overlays this via z-index instead.
-		this.contentElInner.appendChild(webview);
+		webview.setAttribute("src", url);
+		webview.style.display = "none";
+		this.contentElInner?.appendChild(webview);
 
 		webview.addEventListener("dom-ready", () => {
-			this.onWebviewReady();
+			this.onWebviewReady(id);
 		});
 
 		webview.addEventListener("did-navigate", () => {
@@ -1109,9 +1113,9 @@ export class AiSidebarView extends ItemView {
 					};
 					this.searchEntries.push(newEntry);
 					this.activeSearchId = newEntry.id;
-					if (this.webview) {
-						try { this.webview.loadURL(searchUrl); } catch { /* ignore */ }
-					}
+					const searchWvId = "__search__" + newEntry.id;
+					this.getOrCreateWebview(searchWvId, searchUrl);
+					this.showWebview(searchWvId);
 					if (this.tabsHeaderEl) {
 						this.renderTabsHeader(this.tabsHeaderEl);
 					}
@@ -1120,21 +1124,50 @@ export class AiSidebarView extends ItemView {
 		});
 
 		webview.addEventListener("destroyed", () => {
-			this.webview = null;
+			this.webviews.delete(id);
+			if (this.activeWebviewId === id) {
+				this.activeWebviewId = null;
+			}
 		});
 
-		this.webview = webview;
+		this.webviews.set(id, webview);
+		return webview;
 	}
 
-	onWebviewReady(): void {
-		if (!this.webview) return;
+	showWebview(id: string): void {
+		this.webviews.forEach((wv, wvId) => {
+			(wv as HTMLElement).style.display = wvId === id ? "" : "none";
+		});
+		this.activeWebviewId = id;
+	}
+
+	getActiveWebview(): HTMLElement | null {
+		if (!this.activeWebviewId) return null;
+		return this.webviews.get(this.activeWebviewId) || null;
+	}
+
+	destroyWebview(id: string): void {
+		const wv = this.webviews.get(id);
+		if (wv) {
+			try { (wv as any).remove(); } catch { /* ignore */ }
+			this.webviews.delete(id);
+			if (this.activeWebviewId === id) {
+				this.activeWebviewId = null;
+			}
+		}
+	}
+
+	onWebviewReady(id: string): void {
+		if (this.activeWebviewId !== id) return;
 		this.applyTheme();
 	}
 
 	async onClose(): Promise<void> {
 		// Persist open tabs before the view is destroyed
 		this.plugin.persistOpenTabs(this);
-		this.webview = null;
+		this.webviews.forEach((wv) => { try { (wv as any).remove(); } catch { /* ignore */ } });
+		this.webviews.clear();
+		this.activeWebviewId = null;
 		this.contentElInner = null;
 		this.titlebarEl = null;
 		this.tabsHeaderEl = null;
@@ -1150,11 +1183,9 @@ export class AiSidebarView extends ItemView {
 		const isAlreadyActive = this.currentProviderId === id;
 		this.currentProviderId = id;
 		const provider = BUILTIN_PROVIDERS.find((p) => p.id === id);
-		if (!this.webview) {
-			this.createWebview();
-		}
-		if (this.webview && provider && !isAlreadyActive) {
-			this.webview?.setAttribute("src", provider.url);
+		if (provider) {
+			this.getOrCreateWebview(id, provider.url);
+			this.showWebview(id);
 		}
 		this.hideHomePage();
 		this.updateActiveTab();
@@ -1164,9 +1195,6 @@ export class AiSidebarView extends ItemView {
 	}
 
 	switchToSearch(entryId?: string): void {
-		if (!this.webview) {
-			this.createWebview();
-		}
 		const id = entryId || this.activeSearchId;
 		if (!id) return;
 		const entry = this.searchEntries.find((e) => e.id === id);
@@ -1174,9 +1202,9 @@ export class AiSidebarView extends ItemView {
 		const isAlreadyActive = this.currentProviderId === "__search__" && this.activeSearchId === id;
 		this.activeSearchId = id;
 		this.currentProviderId = "__search__";
-		if (!isAlreadyActive) {
-			this.webview.setAttribute("src", entry.url);
-		}
+		const searchWvId = "__search__" + id;
+		if (!isAlreadyActive) { this.getOrCreateWebview(searchWvId, entry.url); }
+		this.showWebview(searchWvId);
 		this.hideHomePage();
 		this.updateActiveTab();
 	}
@@ -1204,7 +1232,6 @@ export class AiSidebarView extends ItemView {
 	}
 
 	applyTheme(): void {
-		if (!this.webview) return;
 		const mode = this.plugin.settings.themeMode;
 		let isDark = false;
 		if (mode === "dark") {
@@ -1226,7 +1253,12 @@ export class AiSidebarView extends ItemView {
   document.documentElement.classList.toggle('ai-sidebar-force-dark', ${isDark});
 })();
 `;
-		this.runInWebview(js);
+		// Apply theme to ALL webviews, not just the active one
+		this.webviews.forEach((wv) => {
+			try {
+				(wv as any).executeJavaScript(js, false).catch(() => {});
+			} catch { /* ignore */ }
+		});
 	}
 
 	// ── Webview actions ──
@@ -1234,17 +1266,20 @@ export class AiSidebarView extends ItemView {
 		const provider = this.currentProviderId
 			? BUILTIN_PROVIDERS.find((p) => p.id === this.currentProviderId)
 			: undefined;
-		if (this.webview && provider) {
-			this.webview.loadURL(provider.url);
+		const wv = this.getActiveWebview();
+		if (wv && provider) {
+			(wv as any).loadURL(provider.url);
 		}
 	}
 
 	goBack(): void {
-		if (this.webview) this.webview.goBack();
+		const wv = this.getActiveWebview();
+		if (wv) (wv as any).goBack();
 	}
 
 	goForward(): void {
-		if (this.webview) this.webview.goForward();
+		const wv = this.getActiveWebview();
+		if (wv) (wv as any).goForward();
 	}
 
 	refresh(): void {
@@ -1253,27 +1288,31 @@ export class AiSidebarView extends ItemView {
 			if (this.homePageEl) this.renderHomePage(this.homePageEl);
 			return;
 		}
-		if (this.webview) this.webview.reload();
+		const wv = this.getActiveWebview();
+		if (wv) (wv as any).reload();
 	}
 
 	copyLink(): void {
-		if (!this.webview) return;
-		const url = this.webview.getURL();
+		const wv = this.getActiveWebview();
+		if (!wv) return;
+		const url = (wv as any).getURL();
 		navigator.clipboard.writeText(url);
 		new Notice(t(this.plugin.settings.lang, "linkCopied"));
 	}
 
 	openInBrowser(): void {
-		if (!this.webview) return;
-		window.open(this.webview.getURL(), "_blank");
+		const wv = this.getActiveWebview();
+		if (!wv) return;
+		window.open((wv as any).getURL(), "_blank");
 	}
 
 	toggleDevTools(): void {
-		if (!this.webview) return;
-		if (this.webview.isDevToolsOpened()) {
-			this.webview.closeDevTools();
+		const wv = this.getActiveWebview();
+		if (!wv) return;
+		if ((wv as any).isDevToolsOpened()) {
+			(wv as any).closeDevTools();
 		} else {
-			this.webview.openDevTools();
+			(wv as any).openDevTools();
 		}
 	}
 
@@ -1386,8 +1425,9 @@ export class AiSidebarView extends ItemView {
 	}
 
 	async runInWebview(js: string, awaitResult = false): Promise<any> {
-		if (!this.webview) return null;
-		const run = () => this.webview.executeJavaScript(js, false);
+		const wv = this.getActiveWebview();
+		if (!wv) return null;
+		const run = () => (wv as any).executeJavaScript(js, false);
 		if (awaitResult) {
 			try { return await run(); } catch (e) { throw e; }
 		}

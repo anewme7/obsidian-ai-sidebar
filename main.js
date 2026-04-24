@@ -346,7 +346,8 @@ var PromptTemplateModal = class extends import_obsidian.Modal {
 };
 var AiSidebarView = class extends import_obsidian.ItemView {
   plugin;
-  webview = null;
+  webviews = /* @__PURE__ */ new Map();
+  activeWebviewId = null;
   currentProviderId = null;
   contentElInner = null;
   titlebarEl = null;
@@ -378,7 +379,8 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("ai-sidebar-container");
-    this.webview = null;
+    this.webviews.clear();
+    this.activeWebviewId = null;
     const validIds = new Set(BUILTIN_PROVIDERS.map((p) => p.id));
     let restored = this.plugin.settings.lastOpenProviderIds.filter((id) => validIds.has(id));
     if (restored.length === 0) {
@@ -523,6 +525,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
         const idx = this.openProviderIds.indexOf(provider.id);
         if (idx !== -1) {
           this.openProviderIds.splice(idx, 1);
+          this.destroyWebview(provider.id);
           this.plugin.persistOpenTabs(this);
           if (this.currentProviderId === provider.id) {
             if (this.openProviderIds.length > 0) {
@@ -667,6 +670,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
         const idx = this.searchEntries.findIndex((en) => en.id === entry.id);
         if (idx !== -1) {
           this.searchEntries.splice(idx, 1);
+          this.destroyWebview("__search__" + entry.id);
           if (this.activeSearchId === entry.id) {
             this.activeSearchId = this.searchEntries.length > 0 ? this.searchEntries[this.searchEntries.length - 1].id : null;
             if (this.activeSearchId) {
@@ -784,12 +788,9 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       }
       this.searchEntries.push(entry);
       this.activeSearchId = entry.id;
-      if (!this.webview) {
-        this.createWebview();
-      }
-      if (this.webview) {
-        this.webview.setAttribute("src", entry.url);
-      }
+      const searchWvId = "__search__" + entry.id;
+      this.getOrCreateWebview(searchWvId, entry.url);
+      this.showWebview(searchWvId);
       this.hideHomePage();
       this.currentProviderId = "__search__";
       this.updateActiveTab();
@@ -814,9 +815,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
         if (!this.openProviderIds.includes(builtinProvider.id)) {
           this.openProviderIds.push(builtinProvider.id);
           this.plugin.persistOpenTabs(this);
-        }
-        if (!this.webview) {
-          this.createWebview();
         }
         this.switchProvider(builtinProvider.id);
         if (this.tabsHeaderEl) {
@@ -875,9 +873,16 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     }
   }
   // ── Webview ──
-  createWebview() {
-    if (!this.contentElInner || this.webview) return;
-    const emptyEl = this.contentElInner.querySelector(".ai-sidebar-empty");
+  getOrCreateWebview(id, url) {
+    if (this.webviews.has(id)) {
+      const wv = this.webviews.get(id);
+      const currentUrl = wv.getURL?.() || wv.getAttribute("src");
+      if (currentUrl !== url) {
+        wv.setAttribute("src", url);
+      }
+      return wv;
+    }
+    const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
     if (emptyEl) emptyEl.remove();
     const webview = document.createElement("webview");
     webview.addClass("ai-sidebar-webview");
@@ -885,9 +890,11 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     const rawAppId = String(this.app.appId || "default");
     const safeAppId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, "-");
     webview.partition = "persist:vault-" + safeAppId;
-    this.contentElInner.appendChild(webview);
+    webview.setAttribute("src", url);
+    webview.style.display = "none";
+    this.contentElInner?.appendChild(webview);
     webview.addEventListener("dom-ready", () => {
-      this.onWebviewReady();
+      this.onWebviewReady(id);
     });
     webview.addEventListener("did-navigate", () => {
       this.applyTheme();
@@ -917,12 +924,9 @@ var AiSidebarView = class extends import_obsidian.ItemView {
           };
           this.searchEntries.push(newEntry);
           this.activeSearchId = newEntry.id;
-          if (this.webview) {
-            try {
-              this.webview.loadURL(searchUrl);
-            } catch {
-            }
-          }
+          const searchWvId = "__search__" + newEntry.id;
+          this.getOrCreateWebview(searchWvId, searchUrl);
+          this.showWebview(searchWvId);
           if (this.tabsHeaderEl) {
             this.renderTabsHeader(this.tabsHeaderEl);
           }
@@ -930,17 +934,51 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       }
     });
     webview.addEventListener("destroyed", () => {
-      this.webview = null;
+      this.webviews.delete(id);
+      if (this.activeWebviewId === id) {
+        this.activeWebviewId = null;
+      }
     });
-    this.webview = webview;
+    this.webviews.set(id, webview);
+    return webview;
   }
-  onWebviewReady() {
-    if (!this.webview) return;
+  showWebview(id) {
+    this.webviews.forEach((wv, wvId) => {
+      wv.style.display = wvId === id ? "" : "none";
+    });
+    this.activeWebviewId = id;
+  }
+  getActiveWebview() {
+    if (!this.activeWebviewId) return null;
+    return this.webviews.get(this.activeWebviewId) || null;
+  }
+  destroyWebview(id) {
+    const wv = this.webviews.get(id);
+    if (wv) {
+      try {
+        wv.remove();
+      } catch {
+      }
+      this.webviews.delete(id);
+      if (this.activeWebviewId === id) {
+        this.activeWebviewId = null;
+      }
+    }
+  }
+  onWebviewReady(id) {
+    if (this.activeWebviewId !== id) return;
     this.applyTheme();
   }
   async onClose() {
     this.plugin.persistOpenTabs(this);
-    this.webview = null;
+    this.webviews.forEach((wv) => {
+      try {
+        wv.remove();
+      } catch {
+      }
+    });
+    this.webviews.clear();
+    this.activeWebviewId = null;
     this.contentElInner = null;
     this.titlebarEl = null;
     this.tabsHeaderEl = null;
@@ -955,11 +993,9 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     const isAlreadyActive = this.currentProviderId === id;
     this.currentProviderId = id;
     const provider = BUILTIN_PROVIDERS.find((p) => p.id === id);
-    if (!this.webview) {
-      this.createWebview();
-    }
-    if (this.webview && provider && !isAlreadyActive) {
-      this.webview?.setAttribute("src", provider.url);
+    if (provider) {
+      this.getOrCreateWebview(id, provider.url);
+      this.showWebview(id);
     }
     this.hideHomePage();
     this.updateActiveTab();
@@ -968,9 +1004,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     }
   }
   switchToSearch(entryId) {
-    if (!this.webview) {
-      this.createWebview();
-    }
     const id = entryId || this.activeSearchId;
     if (!id) return;
     const entry = this.searchEntries.find((e) => e.id === id);
@@ -978,9 +1011,11 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     const isAlreadyActive = this.currentProviderId === "__search__" && this.activeSearchId === id;
     this.activeSearchId = id;
     this.currentProviderId = "__search__";
+    const searchWvId = "__search__" + id;
     if (!isAlreadyActive) {
-      this.webview.setAttribute("src", entry.url);
+      this.getOrCreateWebview(searchWvId, entry.url);
     }
+    this.showWebview(searchWvId);
     this.hideHomePage();
     this.updateActiveTab();
   }
@@ -1006,7 +1041,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     });
   }
   applyTheme() {
-    if (!this.webview) return;
     const mode = this.plugin.settings.themeMode;
     let isDark = false;
     if (mode === "dark") {
@@ -1027,44 +1061,57 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   document.documentElement.classList.toggle('ai-sidebar-force-dark', ${isDark});
 })();
 `;
-    this.runInWebview(js);
+    this.webviews.forEach((wv) => {
+      try {
+        wv.executeJavaScript(js, false).catch(() => {
+        });
+      } catch {
+      }
+    });
   }
   // ── Webview actions ──
   goHome() {
     const provider = this.currentProviderId ? BUILTIN_PROVIDERS.find((p) => p.id === this.currentProviderId) : void 0;
-    if (this.webview && provider) {
-      this.webview.loadURL(provider.url);
+    const wv = this.getActiveWebview();
+    if (wv && provider) {
+      wv.loadURL(provider.url);
     }
   }
   goBack() {
-    if (this.webview) this.webview.goBack();
+    const wv = this.getActiveWebview();
+    if (wv) wv.goBack();
   }
   goForward() {
-    if (this.webview) this.webview.goForward();
+    const wv = this.getActiveWebview();
+    if (wv) wv.goForward();
   }
   refresh() {
     if (this.isHomePage) {
       if (this.homePageEl) this.renderHomePage(this.homePageEl);
       return;
     }
-    if (this.webview) this.webview.reload();
+    const wv = this.getActiveWebview();
+    if (wv) wv.reload();
   }
   copyLink() {
-    if (!this.webview) return;
-    const url = this.webview.getURL();
+    const wv = this.getActiveWebview();
+    if (!wv) return;
+    const url = wv.getURL();
     navigator.clipboard.writeText(url);
     new import_obsidian.Notice(t(this.plugin.settings.lang, "linkCopied"));
   }
   openInBrowser() {
-    if (!this.webview) return;
-    window.open(this.webview.getURL(), "_blank");
+    const wv = this.getActiveWebview();
+    if (!wv) return;
+    window.open(wv.getURL(), "_blank");
   }
   toggleDevTools() {
-    if (!this.webview) return;
-    if (this.webview.isDevToolsOpened()) {
-      this.webview.closeDevTools();
+    const wv = this.getActiveWebview();
+    if (!wv) return;
+    if (wv.isDevToolsOpened()) {
+      wv.closeDevTools();
     } else {
-      this.webview.openDevTools();
+      wv.openDevTools();
     }
   }
   // ── Injection ──
@@ -1172,8 +1219,9 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     }
   }
   async runInWebview(js, awaitResult = false) {
-    if (!this.webview) return null;
-    const run = () => this.webview.executeJavaScript(js, false);
+    const wv = this.getActiveWebview();
+    if (!wv) return null;
+    const run = () => wv.executeJavaScript(js, false);
     if (awaitResult) {
       try {
         return await run();
