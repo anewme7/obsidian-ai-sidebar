@@ -1,5 +1,5 @@
 {
-  "name": "ai-sidebar",
+  "name": "online-ai-sidebar",
   "version": "0.1",
   "description": "Obsidian's sidebar plugin for integrating multiple online AI platforms.",
   "main": "main.js",
@@ -13,7 +13,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kk/obsidian-ai-sidebar.git"
+    "url": "https://github.com/Anewme7/obsidian-online-ai-sidebar.git"
   },
   "type": "commonjs",
   "devDependencies": {

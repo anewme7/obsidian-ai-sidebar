@@ -12,7 +12,7 @@ import {
 	setIcon,
 } from "obsidian";
 
-export const AI_SIDEBAR_VIEW_TYPE = "ai-sidebar";
+export const AI_SIDEBAR_VIEW_TYPE = "online-ai-sidebar";
 
 export type Lang = "en" | "zh";
 
@@ -118,7 +118,7 @@ export const DEFAULT_SETTINGS: AiSidebarSettings = {
 
 const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 	en: {
-		pluginName: "AI Sidebar",
+		pluginName: "Online AI Sidebar",
 		themeMode: "Theme mode",
 		themeModeDesc: "Force a theme for embedded web pages, or follow Obsidian system theme.",
 		light: "Light",
@@ -138,13 +138,13 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 		delete: "Delete",
 		enabled: "Enabled",
 		zoom: "Zoom",
-		noProvidersEnabled: "No providers enabled. Go to Settings → AI Sidebar to enable or add websites.",
+		noProvidersEnabled: "No providers enabled. Go to Settings → Online AI Sidebar to enable or add websites.",
 		customizeHint: "All providers can be deleted. You can keep only the ones you need and add your own.",
 		sendCurrentNote: "Send current note to AI",
-		sendSelection: "Send selection to AI Sidebar",
-		openFolderContext: "Open AI Sidebar (folder context)",
-		openAiSidebar: "Open AI Sidebar",
-		sendNoteCommand: "Send current note to AI Sidebar",
+		sendSelection: "Send selection to Online AI Sidebar",
+		openFolderContext: "Open Online AI Sidebar (folder context)",
+		openAiSidebar: "Open Online AI Sidebar",
+		sendNoteCommand: "Send current note to Online AI Sidebar",
 		noActiveNote: "No active note found.",
 		emptyNote: "Current note is empty.",
 		sentNote: 'Sent "%s" to AI.',
@@ -166,7 +166,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 		languageDesc: "Select the display language for this plugin.",
 		settings: "Settings",
 		enableSendSelection: "Enable right-click send selection",
-		enableSendSelectionDesc: "Show 'Send selection to AI Sidebar' in the editor context menu when text is selected.",
+		enableSendSelectionDesc: "Show 'Send selection to Online AI Sidebar' in the editor context menu when text is selected.",
 		enableSendNote: "Enable one-click send note to AI",
 		enableSendNoteDesc: "Click the 📋 button in the sidebar to send the current note to AI. Content exceeding the limit will be truncated.",
 		sendNoteMaxChars: "Max send characters",
@@ -218,13 +218,13 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 		delete: "删除",
 		enabled: "启用",
 		zoom: "缩放",
-		noProvidersEnabled: "没有启用的 Provider。请前往 设置 → AI Sidebar 启用或添加网站。",
+		noProvidersEnabled: "没有启用的 Provider。请前往 设置 → Online AI Sidebar 启用或添加网站。",
 		customizeHint: "所有 Provider 均可删除。您可以只保留需要的平台，并添加自定义网站。",
 		sendCurrentNote: "发送当前笔记到 AI",
-		sendSelection: "发送选中内容到 AI Sidebar",
-		openFolderContext: "在 AI Sidebar 中打开（文件夹上下文）",
-		openAiSidebar: "打开 AI Sidebar",
-		sendNoteCommand: "发送当前笔记到 AI Sidebar",
+		sendSelection: "发送选中内容到 Online AI Sidebar",
+		openFolderContext: "在 Online AI Sidebar 中打开（文件夹上下文）",
+		openAiSidebar: "打开 Online AI Sidebar",
+		sendNoteCommand: "发送当前笔记到 Online AI Sidebar",
 		noActiveNote: "未找到当前打开的笔记。",
 		emptyNote: "当前笔记为空。",
 		sentNote: '已将 "%s" 发送到 AI。',
@@ -246,7 +246,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 		languageDesc: "选择本插件的显示语言。",
 		settings: "设置",
 		enableSendSelection: "开启右键发送选中文本",
-		enableSendSelectionDesc: "在编辑器中选中文字后，右键菜单显示\"发送到 AI Sidebar\"选项。",
+		enableSendSelectionDesc: "在编辑器中选中文字后，右键菜单显示\"发送到 Online AI Sidebar\"选项。",
 		enableSendNote: "开启一键发送笔记到AI",
 		enableSendNoteDesc: "点击侧边栏的 📋 按钮，将当前笔记内容发送到 AI。超过上限会自动截断。",
 		sendNoteMaxChars: "最大发送字符数",
@@ -280,15 +280,15 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 };
 
 const THEME_INJECT_CSS = `
-html.ai-sidebar-force-dark {
+html.online-ai-sidebar-force-dark {
   filter: invert(1) hue-rotate(180deg) !important;
 }
-html.ai-sidebar-force-dark img,
-html.ai-sidebar-force-dark video,
-html.ai-sidebar-force-dark iframe,
-html.ai-sidebar-force-dark canvas,
-html.ai-sidebar-force-dark svg,
-html.ai-sidebar-force-dark [role="img"] {
+html.online-ai-sidebar-force-dark img,
+html.online-ai-sidebar-force-dark video,
+html.online-ai-sidebar-force-dark iframe,
+html.online-ai-sidebar-force-dark canvas,
+html.online-ai-sidebar-force-dark svg,
+html.online-ai-sidebar-force-dark [role="img"] {
   filter: invert(1) hue-rotate(180deg) !important;
 }
 `;
@@ -527,7 +527,7 @@ export class AiSidebarView extends ItemView {
 		homeBtn.addEventListener("click", () => this.showHomePage());
 
 		// Center: Title
-		titlebar.createEl("span", { cls: "ai-sidebar-titlebar-title", text: "AI Sidebar" });
+		titlebar.createEl("span", { cls: "ai-sidebar-titlebar-title", text: "Online AI Sidebar" });
 
 		// Right: actions
 		const actions = titlebar.createEl("div", { cls: "ai-sidebar-titlebar-actions" });
@@ -721,7 +721,7 @@ export class AiSidebarView extends ItemView {
 						const moveDy = moveEvent.clientY - dragState.startY;
 						ghost.style.transform = `translate3d(${dragState.initialRect.left + moveDx}px, ${dragState.initialRect.top + moveDy}px, 0)`;
 
-						const visibleTabs = Array.from(header.querySelectorAll(".ai-sidebar-tab")).filter(
+						const visibleTabs = Array.from(header.querySelectorAll(".online-ai-sidebar-tab")).filter(
 							(t) => (t as HTMLElement).style.display !== "none" && !t.hasClass("ai-sidebar-tab-ghost")
 						) as HTMLElement[];
 
@@ -889,7 +889,7 @@ export class AiSidebarView extends ItemView {
 			item.addEventListener("click", () => {
 				this.plugin.settings.activeSearchEngine = engine.id;
 				this.plugin.saveSettings();
-				engineMenu.querySelectorAll(".ai-sidebar-engine-menu-item").forEach((el) => el.removeClass("ai-sidebar-engine-menu-item-active"));
+				engineMenu.querySelectorAll(".online-ai-sidebar-engine-menu-item").forEach((el) => el.removeClass("ai-sidebar-engine-menu-item-active"));
 				item.addClass("ai-sidebar-engine-menu-item-active");
 				updateEngineIcon.call(this);
 				engineMenu.style.display = "none";
@@ -1037,7 +1037,7 @@ export class AiSidebarView extends ItemView {
 		}
 		this.hideLoading();
 		// Remove empty state if present
-		const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
+		const emptyEl = this.contentElInner?.querySelector(".online-ai-sidebar-empty");
 		if (emptyEl) emptyEl.remove();
 		this.updateActiveTab();
 	}
@@ -1062,7 +1062,7 @@ export class AiSidebarView extends ItemView {
 			return wv;
 		}
 
-		const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
+		const emptyEl = this.contentElInner?.querySelector(".online-ai-sidebar-empty");
 		if (emptyEl) emptyEl.remove();
 
 		const webview = document.createElement("webview");
@@ -1211,7 +1211,7 @@ export class AiSidebarView extends ItemView {
 
 	updateActiveTab(): void {
 		if (!this.tabsHeaderEl) return;
-		const tabs = this.tabsHeaderEl.querySelectorAll(".ai-sidebar-tab");
+		const tabs = this.tabsHeaderEl.querySelectorAll(".online-ai-sidebar-tab");
 		tabs.forEach((tab) => {
 			const provider = tab.getAttribute("data-provider");
 			if (provider === this.currentProviderId) {

@@ -1,10 +1,10 @@
 {
-  "id": "ai-sidebar",
-  "name": "AI Sidebar",
+  "id": "online-ai-sidebar",
+  "name": "Online AI Sidebar",
   "version": "0.1",
   "minAppVersion": "0.15.0",
   "description": "Open online AI platforms and search engines in the sidebar.",
   "author": "Anewme7",
-  "authorUrl": "https://github.com/Anewme7/obsidian-ai-sidebar",
+  "authorUrl": "https://github.com/Anewme7/obsidian-online-ai-sidebar",
   "isDesktopOnly": true
 }

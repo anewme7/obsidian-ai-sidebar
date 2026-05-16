@@ -31,7 +31,7 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
-var AI_SIDEBAR_VIEW_TYPE = "ai-sidebar";
+var AI_SIDEBAR_VIEW_TYPE = "online-ai-sidebar";
 var AI_ICONS = {
   deepseek: "data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EDeepSeek%3C%2Ftitle%3E%3Cpath%20d%3D%22M23.748%204.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434%201.202-.422%201.84.027%201.436.633%202.58%201.838%203.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526%205.526%200%2001-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365%2011.365%200%2000-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055%203.055%200%2001-.465.137%209.597%209.597%200%2000-2.883-.102c-1.885.21-3.39%201.102-4.497%202.623C.082%208.606-.231%2010.684.152%2012.85c.403%202.284%201.569%204.175%203.36%205.653%201.858%201.533%203.997%202.284%206.438%202.14%201.482-.085%203.133-.284%204.994-1.86.47.234.962.327%201.78.397.63.059%201.236-.03%201.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926%201.096-1.296%202.746-2.642%203.392-7.003.05-.347.007-.565%200-.845-.004-.17.035-.237.23-.256a4.173%204.173%200%20001.545-.475c1.396-.763%201.96-2.015%202.093-3.517.02-.23-.004-.467-.247-.588zM11.581%2018c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696%204.696%200%20011.529-.039c2.132.312%203.946%201.265%205.468%202.774.868.86%201.525%201.887%202.202%202.891.72%201.066%201.494%202.082%202.48%202.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306%200%2001.415-.287.302.302%200%2001.2.288.306.306%200%2001-.31.307.303.303%200%2001-.304-.308zm3.11%201.596c-.2.081-.399.151-.59.16a1.245%201.245%200%2001-.798-.254c-.274-.23-.47-.358-.552-.758a1.73%201.73%200%2001.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559%200%2001-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136%201.146.016.352.144.618.408%201.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z%22%20fill%3D%22%234D6BFE%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E",
   doubao: "data:image/svg+xml;charset=utf-8,%3Csvg%20height%3D%221em%22%20style%3D%22flex%3Anone%3Bline-height%3A1%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%221em%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctitle%3EDoubao%3C%2Ftitle%3E%3Cpath%20d%3D%22M5.31%2015.756c.172-3.75%201.883-5.999%202.549-6.739-3.26%202.058-5.425%205.658-6.358%208.308v1.12C1.501%2021.513%204.226%2024%207.59%2024a6.59%206.59%200%20002.2-.375c.353-.12.7-.248%201.039-.378.913-.899%201.65-1.91%202.243-2.992-4.877%202.431-7.974.072-7.763-4.5l.002.001z%22%20fill%3D%22%231E37FC%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M22.57%2010.283c-1.212-.901-4.109-2.404-7.397-2.8.295%203.792.093%208.766-2.1%2012.773a12.782%2012.782%200%2001-2.244%202.992c3.764-1.448%206.746-3.457%208.596-5.219%202.82-2.683%203.353-5.178%203.361-6.66a2.737%202.737%200%2000-.216-1.084v-.002z%22%20fill%3D%22%2337E1BE%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M14.303%201.867C12.955.7%2011.248%200%209.39%200%207.532%200%205.883.677%204.545%201.807%202.791%203.29%201.627%205.557%201.5%208.125v9.201c.932-2.65%203.097-6.25%206.357-8.307.5-.318%201.025-.595%201.569-.829%201.883-.801%203.878-.932%205.746-.706-.222-2.83-.718-5.002-.87-5.617h.001z%22%20fill%3D%22%23A569FF%22%3E%3C%2Fpath%3E%3Cpath%20d%3D%22M17.305%204.961a199.47%20199.47%200%2001-1.08-1.094c-.202-.213-.398-.419-.586-.622l-1.333-1.378c.151.615.648%202.786.869%205.617%203.288.395%206.185%201.898%207.396%202.8-1.306-1.275-3.475-3.487-5.266-5.323z%22%20fill%3D%22%231E37FC%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E",
@@ -85,12 +85,11 @@ var DEFAULT_SETTINGS = {
   activeSearchEngine: "google",
   promptTemplates: JSON.parse(JSON.stringify(DEFAULT_PROMPT_TEMPLATES)),
   providerOrder: BUILTIN_PROVIDERS.map((p) => p.id),
-  lastOpenProviderIds: [],
-  lastSearchEntries: []
+  lastOpenProviderIds: []
 };
 var TRANSLATIONS = {
   en: {
-    pluginName: "AI Sidebar",
+    pluginName: "Online AI Sidebar",
     themeMode: "Theme mode",
     themeModeDesc: "Force a theme for embedded web pages, or follow Obsidian system theme.",
     light: "Light",
@@ -110,13 +109,13 @@ var TRANSLATIONS = {
     delete: "Delete",
     enabled: "Enabled",
     zoom: "Zoom",
-    noProvidersEnabled: "No providers enabled. Go to Settings \u2192 AI Sidebar to enable or add websites.",
+    noProvidersEnabled: "No providers enabled. Go to Settings \u2192 Online AI Sidebar to enable or add websites.",
     customizeHint: "All providers can be deleted. You can keep only the ones you need and add your own.",
     sendCurrentNote: "Send current note to AI",
-    sendSelection: "Send selection to AI Sidebar",
-    openFolderContext: "Open AI Sidebar (folder context)",
-    openAiSidebar: "Open AI Sidebar",
-    sendNoteCommand: "Send current note to AI Sidebar",
+    sendSelection: "Send selection to Online AI Sidebar",
+    openFolderContext: "Open Online AI Sidebar (folder context)",
+    openAiSidebar: "Open Online AI Sidebar",
+    sendNoteCommand: "Send current note to Online AI Sidebar",
     noActiveNote: "No active note found.",
     emptyNote: "Current note is empty.",
     sentNote: 'Sent "%s" to AI.',
@@ -138,7 +137,7 @@ var TRANSLATIONS = {
     languageDesc: "Select the display language for this plugin.",
     settings: "Settings",
     enableSendSelection: "Enable right-click send selection",
-    enableSendSelectionDesc: "Show 'Send selection to AI Sidebar' in the editor context menu when text is selected.",
+    enableSendSelectionDesc: "Show 'Send selection to Online AI Sidebar' in the editor context menu when text is selected.",
     enableSendNote: "Enable one-click send note to AI",
     enableSendNoteDesc: "Click the \u{1F4CB} button in the sidebar to send the current note to AI. Content exceeding the limit will be truncated.",
     sendNoteMaxChars: "Max send characters",
@@ -190,13 +189,13 @@ var TRANSLATIONS = {
     delete: "\u5220\u9664",
     enabled: "\u542F\u7528",
     zoom: "\u7F29\u653E",
-    noProvidersEnabled: "\u6CA1\u6709\u542F\u7528\u7684 Provider\u3002\u8BF7\u524D\u5F80 \u8BBE\u7F6E \u2192 AI Sidebar \u542F\u7528\u6216\u6DFB\u52A0\u7F51\u7AD9\u3002",
+    noProvidersEnabled: "\u6CA1\u6709\u542F\u7528\u7684 Provider\u3002\u8BF7\u524D\u5F80 \u8BBE\u7F6E \u2192 Online AI Sidebar \u542F\u7528\u6216\u6DFB\u52A0\u7F51\u7AD9\u3002",
     customizeHint: "\u6240\u6709 Provider \u5747\u53EF\u5220\u9664\u3002\u60A8\u53EF\u4EE5\u53EA\u4FDD\u7559\u9700\u8981\u7684\u5E73\u53F0\uFF0C\u5E76\u6DFB\u52A0\u81EA\u5B9A\u4E49\u7F51\u7AD9\u3002",
     sendCurrentNote: "\u53D1\u9001\u5F53\u524D\u7B14\u8BB0\u5230 AI",
-    sendSelection: "\u53D1\u9001\u9009\u4E2D\u5185\u5BB9\u5230 AI Sidebar",
-    openFolderContext: "\u5728 AI Sidebar \u4E2D\u6253\u5F00\uFF08\u6587\u4EF6\u5939\u4E0A\u4E0B\u6587\uFF09",
-    openAiSidebar: "\u6253\u5F00 AI Sidebar",
-    sendNoteCommand: "\u53D1\u9001\u5F53\u524D\u7B14\u8BB0\u5230 AI Sidebar",
+    sendSelection: "\u53D1\u9001\u9009\u4E2D\u5185\u5BB9\u5230 Online AI Sidebar",
+    openFolderContext: "\u5728 Online AI Sidebar \u4E2D\u6253\u5F00\uFF08\u6587\u4EF6\u5939\u4E0A\u4E0B\u6587\uFF09",
+    openAiSidebar: "\u6253\u5F00 Online AI Sidebar",
+    sendNoteCommand: "\u53D1\u9001\u5F53\u524D\u7B14\u8BB0\u5230 Online AI Sidebar",
     noActiveNote: "\u672A\u627E\u5230\u5F53\u524D\u6253\u5F00\u7684\u7B14\u8BB0\u3002",
     emptyNote: "\u5F53\u524D\u7B14\u8BB0\u4E3A\u7A7A\u3002",
     sentNote: '\u5DF2\u5C06 "%s" \u53D1\u9001\u5230 AI\u3002',
@@ -218,7 +217,7 @@ var TRANSLATIONS = {
     languageDesc: "\u9009\u62E9\u672C\u63D2\u4EF6\u7684\u663E\u793A\u8BED\u8A00\u3002",
     settings: "\u8BBE\u7F6E",
     enableSendSelection: "\u5F00\u542F\u53F3\u952E\u53D1\u9001\u9009\u4E2D\u6587\u672C",
-    enableSendSelectionDesc: '\u5728\u7F16\u8F91\u5668\u4E2D\u9009\u4E2D\u6587\u5B57\u540E\uFF0C\u53F3\u952E\u83DC\u5355\u663E\u793A"\u53D1\u9001\u5230 AI Sidebar"\u9009\u9879\u3002',
+    enableSendSelectionDesc: '\u5728\u7F16\u8F91\u5668\u4E2D\u9009\u4E2D\u6587\u5B57\u540E\uFF0C\u53F3\u952E\u83DC\u5355\u663E\u793A"\u53D1\u9001\u5230 Online AI Sidebar"\u9009\u9879\u3002',
     enableSendNote: "\u5F00\u542F\u4E00\u952E\u53D1\u9001\u7B14\u8BB0\u5230AI",
     enableSendNoteDesc: "\u70B9\u51FB\u4FA7\u8FB9\u680F\u7684 \u{1F4CB} \u6309\u94AE\uFF0C\u5C06\u5F53\u524D\u7B14\u8BB0\u5185\u5BB9\u53D1\u9001\u5230 AI\u3002\u8D85\u8FC7\u4E0A\u9650\u4F1A\u81EA\u52A8\u622A\u65AD\u3002",
     sendNoteMaxChars: "\u6700\u5927\u53D1\u9001\u5B57\u7B26\u6570",
@@ -251,15 +250,15 @@ var TRANSLATIONS = {
   }
 };
 var THEME_INJECT_CSS = `
-html.ai-sidebar-force-dark {
+html.online-ai-sidebar-force-dark {
   filter: invert(1) hue-rotate(180deg) !important;
 }
-html.ai-sidebar-force-dark img,
-html.ai-sidebar-force-dark video,
-html.ai-sidebar-force-dark iframe,
-html.ai-sidebar-force-dark canvas,
-html.ai-sidebar-force-dark svg,
-html.ai-sidebar-force-dark [role="img"] {
+html.online-ai-sidebar-force-dark img,
+html.online-ai-sidebar-force-dark video,
+html.online-ai-sidebar-force-dark iframe,
+html.online-ai-sidebar-force-dark canvas,
+html.online-ai-sidebar-force-dark svg,
+html.online-ai-sidebar-force-dark [role="img"] {
   filter: invert(1) hue-rotate(180deg) !important;
 }
 `;
@@ -388,10 +387,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       restored = this.plugin.readTabBackup().filter((id) => validIds.has(id));
     }
     this.openProviderIds = restored;
-    this.searchEntries = (this.plugin.settings.lastSearchEntries || []).map((e) => ({
-      ...e,
-      engineIconUrl: e.engineId === "__url__" ? getFaviconUrl(e.url) : DEFAULT_SEARCH_ENGINES.find((eng) => eng.id === e.engineId)?.iconDataUrl || AI_ICONS.google
-    }));
     this.titlebarEl = containerEl.createEl("div", { cls: "ai-sidebar-titlebar" });
     this.renderTitlebar(this.titlebarEl);
     this.tabsHeaderEl = containerEl.createEl("div", { cls: "ai-sidebar-tabs-header" });
@@ -438,7 +433,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
     const homeBtn = titlebar.createEl("button", { cls: "ai-sidebar-titlebar-btn", attr: { "aria-label": _t("home"), title: _t("home") } });
     (0, import_obsidian.setIcon)(homeBtn, "home");
     homeBtn.addEventListener("click", () => this.showHomePage());
-    titlebar.createEl("span", { cls: "ai-sidebar-titlebar-title", text: "AI Sidebar" });
+    titlebar.createEl("span", { cls: "ai-sidebar-titlebar-title", text: "Online AI Sidebar" });
     const actions = titlebar.createEl("div", { cls: "ai-sidebar-titlebar-actions" });
     const promptBtn = actions.createEl("button", { cls: "ai-sidebar-titlebar-btn", attr: { "aria-label": _t("promptBtnTitle"), title: _t("promptBtnTitle") } });
     (0, import_obsidian.setIcon)(promptBtn, "message-square-text");
@@ -593,7 +588,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
             const moveDx = moveEvent.clientX - dragState.startX;
             const moveDy = moveEvent.clientY - dragState.startY;
             ghost.style.transform = `translate3d(${dragState.initialRect.left + moveDx}px, ${dragState.initialRect.top + moveDy}px, 0)`;
-            const visibleTabs = Array.from(header.querySelectorAll(".ai-sidebar-tab")).filter(
+            const visibleTabs = Array.from(header.querySelectorAll(".online-ai-sidebar-tab")).filter(
               (t2) => t2.style.display !== "none" && !t2.hasClass("ai-sidebar-tab-ghost")
             );
             let inserted = false;
@@ -675,8 +670,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
         const idx = this.searchEntries.findIndex((en) => en.id === entry.id);
         if (idx !== -1) {
           this.searchEntries.splice(idx, 1);
-          this.plugin.settings.lastSearchEntries = [...this.searchEntries];
-          this.plugin.saveSettings();
           this.destroyWebview("__search__" + entry.id);
           if (this.activeSearchId === entry.id) {
             this.activeSearchId = this.searchEntries.length > 0 ? this.searchEntries[this.searchEntries.length - 1].id : null;
@@ -734,7 +727,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       item.addEventListener("click", () => {
         this.plugin.settings.activeSearchEngine = engine.id;
         this.plugin.saveSettings();
-        engineMenu.querySelectorAll(".ai-sidebar-engine-menu-item").forEach((el) => el.removeClass("ai-sidebar-engine-menu-item-active"));
+        engineMenu.querySelectorAll(".online-ai-sidebar-engine-menu-item").forEach((el) => el.removeClass("ai-sidebar-engine-menu-item-active"));
         item.addClass("ai-sidebar-engine-menu-item-active");
         updateEngineIcon.call(this);
         engineMenu.style.display = "none";
@@ -795,8 +788,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       }
       this.searchEntries.push(entry);
       this.activeSearchId = entry.id;
-      this.plugin.settings.lastSearchEntries = [...this.searchEntries];
-      this.plugin.saveSettings();
       const searchWvId = "__search__" + entry.id;
       this.getOrCreateWebview(searchWvId, entry.url);
       this.showWebview(searchWvId);
@@ -869,7 +860,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
       this.homePageEl.style.pointerEvents = "auto";
     }
     this.hideLoading();
-    const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
+    const emptyEl = this.contentElInner?.querySelector(".online-ai-sidebar-empty");
     if (emptyEl) emptyEl.remove();
     this.updateActiveTab();
   }
@@ -884,25 +875,29 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   // ── Webview ──
   getOrCreateWebview(id, url) {
     if (this.webviews.has(id)) {
-      return this.webviews.get(id);
+      const wv = this.webviews.get(id);
+      const currentUrl = wv.getURL?.() || wv.getAttribute("src");
+      if (currentUrl !== url) {
+        wv.setAttribute("src", url);
+      }
+      return wv;
     }
-    const emptyEl = this.contentElInner?.querySelector(".ai-sidebar-empty");
+    const emptyEl = this.contentElInner?.querySelector(".online-ai-sidebar-empty");
     if (emptyEl) emptyEl.remove();
     const webview = document.createElement("webview");
     webview.addClass("ai-sidebar-webview");
-    webview.setAttribute("webpreferences", "contextIsolation=yes");
-    webview.useragent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    webview.setAttribute("webpreferences", "contextIsolation=yes, sandbox=yes");
     const rawAppId = String(this.app.appId || "default");
     const safeAppId = rawAppId.replace(/[^a-zA-Z0-9_-]/g, "-");
-    webview.partition = "persist:ai-sidebar-" + safeAppId;
+    webview.partition = "persist:vault-" + safeAppId;
     webview.setAttribute("src", url);
-    webview.style.opacity = "0";
-    webview.style.pointerEvents = "none";
+    webview.style.display = "none";
     this.contentElInner?.appendChild(webview);
     webview.addEventListener("dom-ready", () => {
       this.onWebviewReady(id);
     });
     webview.addEventListener("did-navigate", () => {
+      this.applyTheme();
     });
     webview.addEventListener("did-start-loading", () => {
       this.showLoading();
@@ -949,16 +944,9 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   }
   showWebview(id) {
     this.webviews.forEach((wv, wvId) => {
-      if (wvId === id) {
-        wv.style.opacity = "1";
-        wv.style.pointerEvents = "auto";
-      } else {
-        wv.style.opacity = "0";
-        wv.style.pointerEvents = "none";
-      }
+      wv.style.display = wvId === id ? "" : "none";
     });
     this.activeWebviewId = id;
-    this.applyTheme();
   }
   getActiveWebview() {
     if (!this.activeWebviewId) return null;
@@ -983,8 +971,6 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   }
   async onClose() {
     this.plugin.persistOpenTabs(this);
-    this.plugin.settings.lastSearchEntries = [...this.searchEntries];
-    this.plugin.saveSettings();
     this.webviews.forEach((wv) => {
       try {
         wv.remove();
@@ -1035,7 +1021,7 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   }
   updateActiveTab() {
     if (!this.tabsHeaderEl) return;
-    const tabs = this.tabsHeaderEl.querySelectorAll(".ai-sidebar-tab");
+    const tabs = this.tabsHeaderEl.querySelectorAll(".online-ai-sidebar-tab");
     tabs.forEach((tab) => {
       const provider = tab.getAttribute("data-provider");
       if (provider === this.currentProviderId) {
@@ -1075,14 +1061,13 @@ var AiSidebarView = class extends import_obsidian.ItemView {
   document.documentElement.classList.toggle('ai-sidebar-force-dark', ${isDark});
 })();
 `;
-    const wv = this.getActiveWebview();
-    if (wv) {
+    this.webviews.forEach((wv) => {
       try {
         wv.executeJavaScript(js, false).catch(() => {
         });
       } catch {
       }
-    }
+    });
   }
   // ── Webview actions ──
   goHome() {
@@ -1454,25 +1439,11 @@ var AiSidebarPlugin = class extends import_obsidian.Plugin {
   }
   persistOpenTabs(view) {
     const ids = view ? [...view.openProviderIds] : this.getCurrentOpenTabs();
-    const searchEntries = view ? [...view.searchEntries] : this.getCurrentSearchTabs();
-    const idsChanged = JSON.stringify(this.settings.lastOpenProviderIds) !== JSON.stringify(ids);
-    const searchChanged = JSON.stringify(this.settings.lastSearchEntries) !== JSON.stringify(searchEntries);
-    if (idsChanged || searchChanged) {
+    if (JSON.stringify(this.settings.lastOpenProviderIds) !== JSON.stringify(ids)) {
       this.settings.lastOpenProviderIds = ids;
-      this.settings.lastSearchEntries = searchEntries;
       this.writeTabBackup(ids);
       void this.saveSettings();
     }
-  }
-  getCurrentSearchTabs() {
-    const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
-    for (const leaf of leaves) {
-      const view = leaf.view;
-      if (view && view.searchEntries && view.searchEntries.length > 0) {
-        return [...view.searchEntries];
-      }
-    }
-    return [];
   }
   getCurrentOpenTabs() {
     const leaves = this.app.workspace.getLeavesOfType(AI_SIDEBAR_VIEW_TYPE);
@@ -1594,9 +1565,6 @@ var AiSidebarPlugin = class extends import_obsidian.Plugin {
       });
       if (!this.settings.lastOpenProviderIds) {
         this.settings.lastOpenProviderIds = [];
-      }
-      if (!this.settings.lastSearchEntries) {
-        this.settings.lastSearchEntries = [];
       }
     } else {
       this.settings = { ...DEFAULT_SETTINGS };

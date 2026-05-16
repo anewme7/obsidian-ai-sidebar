@@ -16,19 +16,19 @@
 
 ### 简便安装
 
-1. 在release页面下载ai-sidebar.zip
-2. 解压后将ai-sidebar文件夹放入 .obsidian/plugins/ 文件夹
+1. 在release页面下载online-ai-sidebar.zip
+2. 解压后将online-ai-sidebar文件夹放入 .obsidian/plugins/ 文件夹
 3. 重启 Obsidian 后启用
 
 ### 手动安装
 
 1. 下载 `main.js`、`manifest.json`、`styles.css`
-2. 放入 Vault 目录：`.obsidian/plugins/ai-sidebar/`
+2. 放入 Vault 目录：`.obsidian/plugins/online-ai-sidebar/`
 3. 在 Obsidian 设置中启用插件
 
 ## 🚀 使用
 
-1. 点击左侧工具栏 ✈️ 图标打开 AI Sidebar
+1. 点击左侧工具栏 ✈️ 图标打开 Online AI Sidebar
 2. 在首页点击 AI 卡片打开对应平台
 3. 顶部搜索栏可搜索或输入网址
 4. 长按拖拽 AI 卡片调整顺序
@@ -45,7 +45,7 @@
 
 **Anewme7**
 
-GitHub: [https://github.com/Anewme7/obsidian-ai-sidebar](https://github.com/Anewme7/obsidian-ai-sidebar)
+GitHub: [https://github.com/Anewme7/obsidian-online-ai-sidebar](https://github.com/Anewme7/obsidian-online-ai-sidebar)
 
 
 ## 📄 License
@@ -56,7 +56,7 @@ MIT
 
 ### Release Notes (English)
 
-# Obsidian AI Sidebar
+# Obsidian Online AI Sidebar
 
 Aggregate multiple online AI platforms and search engines in Obsidian's sidebar.
 
@@ -71,21 +71,21 @@ Aggregate multiple online AI platforms and search engines in Obsidian's sidebar.
 ## Installation
 
 ###Simple Installation
-1. Download `ai-sidebar.zip` from the release page
+1. Download `online-ai-sidebar.zip` from the release page
 
-2. After extracting, place the `ai-sidebar` folder into the `.obsidian/plugins/` folder
+2. After extracting, place the `online-ai-sidebar` folder into the `.obsidian/plugins/` folder
 
 3. Restart Obsidian and enable the plugin
 
 ### Manual Install
 
 1. Download `main.js`, `manifest.json`, `styles.css`
-2. Place in your vault: `.obsidian/plugins/ai-sidebar/`
+2. Place in your vault: `.obsidian/plugins/online-ai-sidebar/`
 3. Enable the plugin in Obsidian settings
 
 ## Usage
 
-1. Click the ✈️ ribbon icon to open AI Sidebar
+1. Click the ✈️ ribbon icon to open Online AI Sidebar
 2. Click any AI card on the home page to open it
 3. Use the search bar to search or enter a URL
 4. Long-press and drag AI cards to reorder
@@ -102,7 +102,7 @@ Aggregate multiple online AI platforms and search engines in Obsidian's sidebar.
 
 **Anewme7**
 
-GitHub: [https://github.com/Anewme7/obsidian-ai-sidebar](https://github.com/Anewme7/obsidian-ai-sidebar)
+GitHub: [https://github.com/Anewme7/obsidian-online-ai-sidebar](https://github.com/Anewme7/obsidian-online-ai-sidebar)
 
 ## License
 
